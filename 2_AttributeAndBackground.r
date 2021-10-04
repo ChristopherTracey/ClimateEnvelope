@@ -1,4 +1,5 @@
-library(stars)
+#library(stars)
+library(caret)
 
 # get the basemap data ################################################################################################
 bndPA <- arc.open(here::here("modeling_data.gdb", "bnd_PAstate"))
@@ -19,15 +20,24 @@ setdiff(names(predictors_Future), names(predictors_Current))
 points_attributed <- extract(predictors_Current, species_sf, method="simple", sp=TRUE)
 points_attributed <- st_as_sf(points_attributed)
 
-library(vtable)
-sumtable(points_attributed)
+# look for near zero variation for each attributed variable
+ptsAtt_df <-points_attributed
+st_geometry(ptsAtt_df) <- NULL
+ck_nrZeroVar <- nearZeroVar(ptsAtt_df, saveMetrics=TRUE)
+if(any(ck_nrZeroVar$nzv==TRUE)){
+  cat("Print at least one variable has near zero variation.")
+} else {
+  cat("There is variation is all the variables.")
+}
 
 # look for duplicated values
-tmp <-points_attributed
-st_geometry(tmp) <- NULL
-duplicated(tmp)
+if(any(isTRUE(duplicated(tmp)))){
+  cat("Print at least one variable has duplicated environmental variables.")
+} else {
+  cat("There are no fully duplicated variables.")
+}
 
-
+rm(tmp)
 
 
 

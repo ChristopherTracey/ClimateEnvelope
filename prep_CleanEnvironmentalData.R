@@ -12,8 +12,8 @@ if (!requireNamespace("fasterize", quietly = TRUE)) install.packages("fasterize"
 require(fasterize)
 if (!requireNamespace("here", quietly = TRUE)) install.packages("here")
 require(here)
-#if (!requireNamespace("virtualspecies", quietly = TRUE)) install.packages("virtualspecies")
-#require(virtualspecies)
+if (!requireNamespace("virtualspecies", quietly = TRUE)) install.packages("virtualspecies")
+require(virtualspecies)
 
 here::i_am("Scripting/1_CleanEnvironmentalData.R")
 
@@ -131,4 +131,16 @@ for (i in 1:length(uncorrlist)){
   a <- writeRaster(uncorrlist, filename = uncorrlist, format = "ascii", overwrite = TRUE)
 }
 
+
+# NEW STUFF - check for correlated variable groups
+
+predictors_Current <- stack(list.files(here::here("_data","env_vars","Climate_Current"), pattern = 'asc$', full.names=TRUE ))
+# Automatic selection of variables not intercorrelated (likely doesn't choose the "right" reps)
+corr <- removeCollinearity(predictors_Current, plot=TRUE, multicollinearity.cutoff=0.8, select.variables=FALSE)
+names(corr) <- seq(1:length(corr))
+
+corr <- unlist(corr)
+corr1 <- as.data.frame(corr)
+corr1$names <- rownames(corr1)
+corr1$names <- substr(corr1$names, 1, 1)
 
