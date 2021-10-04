@@ -60,12 +60,12 @@ m1 <-  cbind(
   from = c(-Inf, tr),
   to = c(tr, Inf),
   becomes = c(0, 2)
-)µ
+)
 
 p_thresh <- reclassify(p, m)
 pfut_thresh <- reclassify(pfut, m1)
 
-
+# creates a map showing contraction/stability/expansion ###################
 m3 <- calc(stack(p_thresh,pfut_thresh), sum)
 plot(m3)
 
@@ -73,8 +73,11 @@ library(rasterVis)
 gplot(m3) +
   geom_raster(aes(fill = factor(value))) +
   coord_equal()
+###########################################################################
+
 
 # p_thresh <- p[p > tr]
 
 plot(p_thresh, main='presence/absence')
 plot(pfut_thresh)
+
