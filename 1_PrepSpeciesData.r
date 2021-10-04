@@ -9,7 +9,6 @@ db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
 sp_data <- dbGetQuery(db_cem, paste("SELECT * FROM lkpSpecies WHERE CUTECODE = " , sQuote(sp_code), sep="") )
 dbDisconnect(db_cem)
 
-
 # get the training data ###############################################################################################
 species <- read.table(here::here("_data","occurrence","Maxent_practiceinputspecies.csv"), header=TRUE,  sep=',')
 species <- species[which(species$species==sp_data$SNAME),]
@@ -21,6 +20,6 @@ ifelse(!dir.exists(here::here("_data","species",sp_code,"input")), dir.create(he
 write.csv(species_pts, here::here("_data", "species", sp_code, "input", paste0(sp_code,"_input.csv")))
 
 # create a sf points layer
-species_sf <- st_as_sf(species_pts, coords=c("lon","lat"), crs=projPA)
+species_sf <- st_as_sf(species_pts, coords=c("lon","lat")) # , crs=projPA
 plot(species_sf)
-st_write(species_sf,here::here("_data", "species", sp_code, "input", paste0(sp_code,"_input.shp")) )
+st_write(species_sf,here::here("_data", "species", sp_code, "input", paste0(sp_code,"_input.shp")),append=FALSE)
