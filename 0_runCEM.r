@@ -4,8 +4,15 @@ library(arcgisbinding)
 arc.check_product()
 library(ggplot2)
 
-
 sp_code <- "Lupinus perennis"
+
+
+
+
+
+
+
+
 
 # species code (from lkpSpecies in modelling database. This will be the new folder name containing inputs/ouptuts)
 model_species <- "euphpurp"
