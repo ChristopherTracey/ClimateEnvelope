@@ -4,17 +4,34 @@ library(arcgisbinding)
 arc.check_product()
 library(ggplot2)
 
+# species code (from lkpSpecies in modelling database. This will be the new folder name containing inputs/outputs)
+sp_code <- "lupipere" # Lupinus perennis
 
-sp_code <- "Lupinus perennis"
+# Modeling database
+nm_db_file <- here("_data", "databases", "CEMdata.sqlite")
 
-# species code (from lkpSpecies in modelling database. This will be the new folder name containing inputs/ouptuts)
-model_species <- "euphpurp"
+# map projection
+projPA <- CRS("+proj=aea +lat_1=40 +lat_2=42 +lat_0=39 +lon_0=-78 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs") #projection for PA
+
+
+options(useFancyQuotes=FALSE) # needed to make sure SQL queries work as well as they could
+
+
+
+
+
+
+
+
+
+#####
+
+
 # loc_scripts is your repository. Make sure your git repository is set to correct branch
 loc_scripts <- here()
 # The main modelling folder for inputs/outputs. All sub-folders are created during the model run (when starting with step 1)
 loc_model <- here("_data", "species")
-# Modeling database
-nm_db_file <- here("_data", "databases", "SDM_lookupAndTracking_chris.sqlite")
+
 # locations file (presence reaches). Provide full path; File is copied to modeling folder and timestamped.
 nm_presFile <- here("_data", "occurrence", paste0(model_species, ".shp"))
 #nm_presFile <- here("_data", "occurrence", paste0(sub("-","_",model_species), ".gpkg"))

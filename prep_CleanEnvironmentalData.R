@@ -2,22 +2,16 @@
 
 if (!requireNamespace("raster", quietly = TRUE)) install.packages("raster")
 require(raster)
-
 if (!requireNamespace("rgdal", quietly = TRUE)) install.packages("rgdal")
 require(rgdal)
-
 if (!requireNamespace("sf", quietly = TRUE)) install.packages("sf")
 require(sf)
-
 if (!requireNamespace("tidyverse", quietly = TRUE)) install.packages("tidyverse")
 require(tidyverse)
-
 if (!requireNamespace("fasterize", quietly = TRUE)) install.packages("fasterize")
 require(fasterize)
-
 if (!requireNamespace("here", quietly = TRUE)) install.packages("here")
 require(here)
-
 if (!requireNamespace("virtualspecies", quietly = TRUE)) install.packages("virtualspecies")
 require(virtualspecies)
 
@@ -26,7 +20,6 @@ here::i_am("Scripting/1_CleanEnvironmentalData.R")
 ####################
 ### Basic set up ###
 ####################
-
 
 # set up projection parameter for use throughout script--albers
 ascproj <- CRS("+proj=lcc +lon_0=-95 +lat_1=49 +lat_2=77 +lat_0=0") #projection of AdaptWest asc layers
@@ -43,7 +36,6 @@ reproj_clpshp <- spTransform(clpShp, CRS=ascproj)
 
 #get extent of shape
 clpextent<- extent(reproj_clpshp)
-
 
 #######################################
 ###### Clip a set of .asc rasters #####
@@ -112,13 +104,11 @@ cliplist<-as.list(paste(pathToClipped, doneasclist,sep = "/"))
 nm <- substr(doneasclist,1,nchar(doneasclist) - 4)
 names(cliplist)<-nm
 
-
 #stack raster layers and then examine for correlated layers
 envtStack <- stack(cliplist) #Reads in .asc files as a raster stack
 
 corr <- removeCollinearity(envtStack, plot = TRUE, multicollinearity.cutoff = 0.8)
 plot(corr) #save image to folder w/ variables, for future reference
-
 
 # Automatic selection of variables not intercorrelated (likely doesn't choose the "right" reps)
 uncorr <- removeCollinearity(envtStack, plot = TRUE, multicollinearity.cutoff = 0.8, select.variables = TRUE)
@@ -141,4 +131,16 @@ for (i in 1:length(uncorrlist)){
   a <- writeRaster(uncorrlist, filename = uncorrlist, format = "ascii", overwrite = TRUE)
 }
 
+
+# NEW STUFF - check for correlated variable groups
+
+predictors_Current <- stack(list.files(here::here("_data","env_vars","Climate_Current"), pattern = 'asc$', full.names=TRUE ))
+# Automatic selection of variables not intercorrelated (likely doesn't choose the "right" reps)
+corr <- removeCollinearity(predictors_Current, plot=TRUE, multicollinearity.cutoff=0.8, select.variables=FALSE)
+names(corr) <- seq(1:length(corr))
+
+corr <- unlist(corr)
+corr1 <- as.data.frame(corr)
+corr1$names <- rownames(corr1)
+corr1$names <- substr(corr1$names, 1, 1)
 
