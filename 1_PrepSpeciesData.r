@@ -1,4 +1,5 @@
 library(RSQLite)
+library(sf)
 
 # create an output directory if it doesn't exist
 ifelse(!dir.exists(here::here("_data","species",sp_code)), dir.create(here::here("_data","species",sp_code)), FALSE)
@@ -19,3 +20,7 @@ rm(species)
 ifelse(!dir.exists(here::here("_data","species",sp_code,"input")), dir.create(here::here("_data","species",sp_code,"input")), FALSE)
 write.csv(species_pts, here::here("_data", "species", sp_code, "input", paste0(sp_code,"_input.csv")))
 
+# create a sf points layer
+species_sf <- st_as_sf(species_pts, coords=c("lon","lat"), crs=projPA)
+plot(species_sf)
+st_write(species_sf,here::here("_data", "species", sp_code, "input", paste0(sp_code,"_input.shp")) )

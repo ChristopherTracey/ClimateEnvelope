@@ -10,10 +10,13 @@ sp_code <- "lupipere" # Lupinus perennis
 # Modeling database
 nm_db_file <- here("_data", "databases", "CEMdata.sqlite")
 
-
+# map projection
+projPA <- CRS("+proj=aea +lat_1=40 +lat_2=42 +lat_0=39 +lon_0=-78 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs") #projection for PA
 
 
 options(useFancyQuotes=FALSE) # needed to make sure SQL queries work as well as they could
+
+
 
 
 
