@@ -131,8 +131,8 @@ for (i in 1:length(uncorrlist)){
   a <- writeRaster(uncorrlist, filename = uncorrlist, format = "ascii", overwrite = TRUE)
 }
 
-
-# NEW STUFF - check for correlated variable groups
+###########################################################
+# NEW STUFF - check for correlated variable groups and write to the database
 
 predictors_Current <- stack(list.files(here::here("_data","env_vars","Climate_Current"), pattern = 'asc$', full.names=TRUE ))
 # Automatic selection of variables not intercorrelated (likely doesn't choose the "right" reps)
@@ -146,8 +146,6 @@ corr$group <- substr(corr$group, 1, 1)
 
 for(i in 1:nrow(corr)){
   db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
-  dbSendQuery(db_cem, paste("UPDATE lkpEnvVar SET CorrGroup = ", sQuote(corr$group[i])," WHERE rasName = ", sQuote(corr$corr[i]),";", sep="") )
+  dbSendQuery(db_cem, paste("UPDATE lkpEnvVar SET CorrGroup = ", sQuote(corr$group[i])," WHERE rasCode = ", sQuote(corr$corr[i]),";", sep="") )
   dbDisconnect(db_cem)
 }
-
-
