@@ -16,13 +16,16 @@ projPA <- CRS("+proj=aea +lat_1=40 +lat_2=42 +lat_0=39 +lon_0=-78 +x_0=0 +y_0=0 
 # project area, shapefile or gdb feature class
 project_area <- here::here("_data","other_spatial","modeling_data.gdb", "bnd_PAstate")
 
+# your name
+modeller = "Christopher Tracey"
 
 options(useFancyQuotes=FALSE) # needed to make sure SQL queries work as well as they could
 
+# Step 2: Run a Model
 
-
-
-
+source("1_PrepSpeciesData.r")
+source("2_AttributeAndBackground.r")
+source("3a_MaxEnt.r")
 
 
 
@@ -68,11 +71,7 @@ model_comments = ""
 # comment printed in PDF metadata
 metaData_comments = ""
 
-# your name
-modeller = "Christopher Tracey"
 
 
 
-source("1_PrepSpeciesData.r")
-source("1_PrepSpeciesData.r")
-source("1_PrepSpeciesData.r")
+
