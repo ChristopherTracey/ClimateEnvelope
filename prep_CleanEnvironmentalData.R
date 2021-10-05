@@ -138,9 +138,16 @@ predictors_Current <- stack(list.files(here::here("_data","env_vars","Climate_Cu
 # Automatic selection of variables not intercorrelated (likely doesn't choose the "right" reps)
 corr <- removeCollinearity(predictors_Current, plot=TRUE, multicollinearity.cutoff=0.8, select.variables=FALSE)
 names(corr) <- seq(1:length(corr))
-
 corr <- unlist(corr)
-corr1 <- as.data.frame(corr)
-corr1$names <- rownames(corr1)
-corr1$names <- substr(corr1$names, 1, 1)
+corr <- as.data.frame(corr)
+corr$group <- rownames(corr)
+corr$group <- substr(corr$group, 1, 1)
+
+
+for(i in 1:nrow(corr)){
+  db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
+  dbSendQuery(db_cem, paste("UPDATE lkpEnvVar SET CorrGroup = ", sQuote(corr$group[i])," WHERE rasName = ", sQuote(corr$corr[i]),";", sep="") )
+  dbDisconnect(db_cem)
+}
+
 
