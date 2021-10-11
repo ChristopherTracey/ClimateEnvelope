@@ -9,10 +9,10 @@ sp_data <- dbGetQuery(db_cem, paste("SELECT * FROM lkpSpecies WHERE CUTECODE = "
 dbDisconnect(db_cem)
 
 # get the training data ###############################################################################################
-species <- read.table(here::here("_data","occurrence","Maxent_practiceinputspecies.csv"), header=TRUE,  sep=',')
-species <- species[which(species$species==sp_data$SNAME),]
-species_pts <- species[,-1] # drop the 
-rm(species)
+# species <- read.table(here::here("_data","occurrence","Maxent_practiceinputspecies.csv"), header=TRUE,  sep=',')
+# species <- species[which(species$species==sp_data$SNAME),]
+# species_pts <- species[,-1] # drop the 
+# rm(species)
 
 
 # get the species data ################################################################################################
@@ -24,11 +24,6 @@ spData <- arc.data2sf(spData)
 # ifelse(!dir.exists(here::here("_data","species",sp_code,"input")), dir.create(here::here("_data","species",sp_code,"input")), FALSE)
 # ifelse(!dir.exists(here::here("_data","species",sp_code,"output")), dir.create(here::here("_data","species",sp_code,"output")), FALSE)
 # write.csv(species_pts, here::here("_data", "species", sp_code, "input", paste0(sp_code,"_input.csv")))
-
-# create a sf points layer
-# species_sf <- st_as_sf(species_pts, coords=c("lon","lat")) # 
-# plot(species_sf)
-# species_sf <- st_transform(species_sf, projPA)
 
 st_write(spData, here::here("_data", "species", sp_code, "input", paste0(sp_code,"_input.shp")), append=FALSE)
 
@@ -43,6 +38,7 @@ a <- stringr::str_split(as.character(crs(studyArea)), ' ')
 b <- stringr::str_split(as.character(crs(spData)), ' ')
 identical(sort(unlist(a)), sort(unlist(b)))
 rm(a,b)
+
 # Let's take a look at our raw occurrence points
 ggplot() +
   geom_sf(studyArea, mapping=aes(fill=Id)) +
@@ -50,21 +46,23 @@ ggplot() +
 
 
 # convert species points to a lat/long df  MOVE THIS BELOW???
-sp_coords < data.frame(st_coordinates(spData[,1]))
+sp_coords <- data.frame(st_coordinates(spData[,1]))
 names(sp_coords) <- c("lon","lat")
 
 
 # get the predictor data ##############################################################################################
 cat("Loading the predictor data...")
 predictors_Current <- stack(list.files(here::here("_data","env_vars","Climate_Current"), pattern = 'asc$', full.names=TRUE ))
+predictors_Current <- projectRaster(predictors_Current, crs=crs(studyArea))
 predictors_Future <- stack(list.files(here::here("_data","env_vars","Climate_Future2050rfp45"), pattern = 'asc$', full.names=TRUE ))
+predictors_Future <- projectRaster(predictors_Future, crs=crs(studyArea))
 
 # check to see if the names are the same
 setdiff(names(predictors_Current), names(predictors_Future))
 setdiff(names(predictors_Future), names(predictors_Current))
 
 # extract values to point from the raster stack
-presVals <- raster::extract(predictors_Current, spData, method="simple")
+presVals <- raster::extract(predictors_Current1, spData, method="simple")
 
 # These are 500 random locations, used as in place of absence values as 
 # 'pseudoabsences' (the species probably doesn't occur at any random point)
@@ -125,3 +123,19 @@ project.sdm(prediction_rf_future, "Random Forest Futue SDM (D. californica)")
 #####################################################################################
 # Maximum Entropy
 
+# Maxent, need to install maxent (https://biodiversityinformatics.amnh.org/open_source/maxent/)
+# and place it here:
+system.file("java", package="dismo")
+
+sdm_maxent <- maxent(predictors_Current, species_pts)
+prediction_maxent <- dismo::predict(sdm_maxent, predictors_Current)
+project.sdm(prediction_maxent, "MaxEnt SDM ")
+
+prediction_maxent_future <- dismo::predict(sdm_maxent, predictors_Future)
+project.sdm(prediction_maxent_future, "MaxEnt SDM ")
+
+# Look at response for each predictor
+response(sdm_maxent)
+
+# Look at variable contribution for maxent
+plot(sdm_maxent)
