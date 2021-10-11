@@ -8,23 +8,15 @@ db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
 sp_data <- dbGetQuery(db_cem, paste("SELECT * FROM lkpSpecies WHERE CUTECODE = " , sQuote(sp_code), sep="") )
 dbDisconnect(db_cem)
 
-# get the training data ###############################################################################################
-# species <- read.table(here::here("_data","occurrence","Maxent_practiceinputspecies.csv"), header=TRUE,  sep=',')
-# species <- species[which(species$species==sp_data$SNAME),]
-# species_pts <- species[,-1] # drop the 
-# rm(species)
-
-
 # get the species data ################################################################################################
 spData <- arc.open(spData)
 spData <- arc.select(spData)
 spData <- arc.data2sf(spData)
 
-# write a csv of the training data to the input folder for backup or other use
-# ifelse(!dir.exists(here::here("_data","species",sp_code,"input")), dir.create(here::here("_data","species",sp_code,"input")), FALSE)
-# ifelse(!dir.exists(here::here("_data","species",sp_code,"output")), dir.create(here::here("_data","species",sp_code,"output")), FALSE)
+# write a shapeefile of the training data to the input folder for backup or other use
+ifelse(!dir.exists(here::here("_data","species",sp_code,"input")), dir.create(here::here("_data","species",sp_code,"input")), FALSE)
+ifelse(!dir.exists(here::here("_data","species",sp_code,"output")), dir.create(here::here("_data","species",sp_code,"output")), FALSE)
 # write.csv(species_pts, here::here("_data", "species", sp_code, "input", paste0(sp_code,"_input.csv")))
-
 st_write(spData, here::here("_data", "species", sp_code, "input", paste0(sp_code,"_input.shp")), append=FALSE)
 
 
@@ -85,7 +77,7 @@ View(sdmdata)
 # PREP THE DATA for the SDM package ##############################################
 
 # Prep data format for the sdm package
-sdm.pkg.df_pres <- cbind(species_pts, presVals)
+sdm.pkg.df_pres <- cbind(sp_coords, presVals)
 sdm.pkg.df_pres$Ey <- 1
 names(sdm.pkg.df_pres)[1:2] <- c("x", "y")
 sdm.pkg.df_abs <- data.frame(cbind(backgr, absVals))
@@ -114,11 +106,11 @@ library(sdm)
 # Run the model and project
 sdm_rf <- sdm::sdm(Ey ~ CMD + DD5 + MAP + MAR + MSP + PAS + RH + TD, data=sdmdata_sdmpkg, methods=c("rf"))
 prediction_rf <- raster::predict(sdm_rf, predictors_Current)
-project.sdm(prediction_rf, "Random Forest SDM (D. californica)")
+project.sdm(prediction_rf, "Random Forest SDM")
 getVarImp(sdm_rf)
 
 prediction_rf_future <- raster::predict(sdm_rf, predictors_Future)
-project.sdm(prediction_rf_future, "Random Forest Futue SDM (D. californica)")
+project.sdm(prediction_rf_future, "Random Forest Future SDM")
 
 #####################################################################################
 # Maximum Entropy
@@ -127,12 +119,12 @@ project.sdm(prediction_rf_future, "Random Forest Futue SDM (D. californica)")
 # and place it here:
 system.file("java", package="dismo")
 
-sdm_maxent <- maxent(predictors_Current, species_pts)
+sdm_maxent <- maxent(predictors_Current, sp_coords)
 prediction_maxent <- dismo::predict(sdm_maxent, predictors_Current)
 project.sdm(prediction_maxent, "MaxEnt SDM ")
 
 prediction_maxent_future <- dismo::predict(sdm_maxent, predictors_Future)
-project.sdm(prediction_maxent_future, "MaxEnt SDM ")
+project.sdm(prediction_maxent_future, "MaxEnt SDM Future")
 
 # Look at response for each predictor
 response(sdm_maxent)

@@ -32,25 +32,34 @@ studyArea <- here::here("_data","other_spatial","modeling_data.gdb", "boundPAsta
 # your name
 modeller = "Christopher Tracey"
 
-prediction <- prediction_glm3.Ey
-# Here's a function we'll use to plot SDM projections
+
+
+# Here's a function to plot the current and future HSM projections
 project.sdm <- function(prediction, plotName){
+  rng = range(c(0, 1)) #a range to have the same min and max for both plots
   map.p <- rasterToPoints(prediction)
   df <- data.frame(map.p) # Make the points a dataframe for ggplot
-  colnames(df) <- c('Longitude', 'Latitude', 'MAP') # Make appropriate column headings
+  colnames(df) <- c('Longitude', 'Latitude', 'Probability') # Make appropriate column headings
   ggplot() +
-    geom_raster(data=df,  mapping=aes(y=Latitude, x=Longitude, fill=MAP)) +
-    #geom_sf(studyArea, mapping=aes(fill=Id)) +
-    geom_point(data=species_pts, aes(x=lon, y=lat), color='white', size=2, shape=4)
-  #legend("bottomright", legend = "D. californica occ.", pch = 16, cex=.4)
+    geom_raster(data=df,  mapping=aes(y=Latitude, x=Longitude, fill=Probability)) +
+    scale_fill_gradient2(low="blue", high="red", guide="colorbar", limits=c(floor(rng[1]), ceiling(rng[2]))) +
+    geom_sf(data=studyArea, color='black', fill=NA) +
+    geom_point(data=sp_coords, aes(x=lon, y=lat), color='gray', size=2, shape=4) +
+    ggtitle(plotName) +
+    theme_minimal() +
+    theme(
+      axis.title.x = element_blank(),
+      axis.title.y = element_blank()  
+    )
+    
 }
 
 
-# Step 2: Run a Model
-
-source("1_PrepSpeciesData.r")
-source("2_AttributeAndBackground.r")
-source("3a_MaxEnt.r")
+# # Step 2: Run a Model
+# 
+# source("1_PrepSpeciesData.r")
+# source("2_AttributeAndBackground.r")
+# source("3a_MaxEnt.r")
 
 
 
