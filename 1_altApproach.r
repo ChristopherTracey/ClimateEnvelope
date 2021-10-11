@@ -82,44 +82,36 @@ sdmdata <- data.frame(cbind(Ey, rbind(presVals, absVals)))
 View(sdmdata)
 
 
-# Let's start Modeling! Here's the most basic SDM
-
-## Linear Model SDM
-# E(y) = mx + b + e
-# E(y) is expected habitat suitability
-# b = intercept
-# m = coefficient
-# x = predictor
-# e = error
-
-# Assumes: Normal distributed error
-#          mean = 0
-#          Variance(y) is constant
 
 
-
-# Let's make  GLM with all 3 variables
-par(mfrow=c(1,1))
-sdm_glm3 <- glm(Ey ~ CMD + DD5 + MAP + MAR + MSP + PAS + RH + TD, data=sdmdata, family = binomial)
-prediction_glm3 <- raster::predict(predictors_Current, sdm_glm3)
-prediction_glm3.Ey <- exp(prediction_glm3) / (1+exp(prediction_glm3))
-project.sdm(prediction_glm3.Ey, "GLM SDM (D. californica)")
-
-
-# RandomForest
-# Now Let's try more strictly Machine Learning: Random Forest
-sdm::installAll()
-library(sdm)
+# PREP THE DATA for the SDM package ##############################################
 
 # Prep data format for the sdm package
-sdm.pkg.df_pres <- cbind(sp_coords, presVals)
+sdm.pkg.df_pres <- cbind(species_pts, presVals)
 sdm.pkg.df_pres$Ey <- 1
 names(sdm.pkg.df_pres)[1:2] <- c("x", "y")
 sdm.pkg.df_abs <- data.frame(cbind(backgr, absVals))
 sdm.pkg.df_abs$Ey <- 0
 sdmdf_sdmpkg <- rbind(sdm.pkg.df_pres, sdm.pkg.df_abs)
-sdmdata_sdmpkg <- sdmData(Ey ~ CMD + DD5 + MAP + MAR + MSP + PAS + RH + TD, train = sdmdf_sdmpkg)
+sdmdata_sdmpkg <- sdmData(Ey ~ CMD + DD5 + MAP + MAR + MSP + PAS + RH + TD, train=sdmdf_sdmpkg)
 
+#####################################################################################
+# General Linear Model
+
+# Run a GLM model using the sdm package
+sdm_ml.glm <- sdm::sdm(Ey ~ CMD + DD5 + MAP + MAR + MSP + PAS + RH + TD, data=sdmdata_sdmpkg, methods=c("glm"))
+prediction_ml.glm <- raster::predict(sdm_ml.glm, predictors_Current)
+project.sdm(prediction_ml.glm, "GLM SDM")
+
+# predict to the future
+prediction_ml.glm_future <- raster::predict(sdm_ml.glm, predictors_Future)
+project.sdm(prediction_ml.glm_future, "GLM SDM Future")
+
+#####################################################################################
+# RandomForest
+# Now Let's try more strictly Machine Learning: Random Forest
+sdm::installAll()
+library(sdm)
 
 # Run the model and project
 sdm_rf <- sdm::sdm(Ey ~ CMD + DD5 + MAP + MAR + MSP + PAS + RH + TD, data=sdmdata_sdmpkg, methods=c("rf"))
@@ -129,4 +121,7 @@ getVarImp(sdm_rf)
 
 prediction_rf_future <- raster::predict(sdm_rf, predictors_Future)
 project.sdm(prediction_rf_future, "Random Forest Futue SDM (D. californica)")
+
+#####################################################################################
+# Maximum Entropy
 

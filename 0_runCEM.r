@@ -32,13 +32,17 @@ studyArea <- here::here("_data","other_spatial","modeling_data.gdb", "boundPAsta
 # your name
 modeller = "Christopher Tracey"
 
-
+prediction <- prediction_glm3.Ey
 # Here's a function we'll use to plot SDM projections
 project.sdm <- function(prediction, plotName){
-  sp::plot(prediction, main = plotName)
-  sp::plot(studyArea, add = T)
-  points(sp_coords, pch = 16, cex = .4)
-  legend("bottomright", legend = "D. californica occ.", pch = 16, cex=.4)
+  map.p <- rasterToPoints(prediction)
+  df <- data.frame(map.p) # Make the points a dataframe for ggplot
+  colnames(df) <- c('Longitude', 'Latitude', 'MAP') # Make appropriate column headings
+  ggplot() +
+    geom_raster(data=df,  mapping=aes(y=Latitude, x=Longitude, fill=MAP)) +
+    #geom_sf(studyArea, mapping=aes(fill=Id)) +
+    geom_point(data=species_pts, aes(x=lon, y=lat), color='white', size=2, shape=4)
+  #legend("bottomright", legend = "D. californica occ.", pch = 16, cex=.4)
 }
 
 
