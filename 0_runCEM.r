@@ -1,8 +1,21 @@
+# GOALS
+# - run three models (maxent, rf, and glm)
+# - evaluate each individual model
+# - create framework to compare and create ensemble models
+# - stack models within species groups
+
 library(here)
 library(dismo)
 library(arcgisbinding)
 arc.check_product()
 library(ggplot2)
+library(RSQLite)
+library(sf)
+library(tidyverse)
+library(sdm)
+
+options(useFancyQuotes=FALSE) # needed to make sure SQL queries work as well as they could
+
 
 # species code (from lkpSpecies in modelling database. This will be the new folder name containing inputs/outputs)
 sp_code <- "lupipere" # Lupinus perennis
@@ -10,16 +23,24 @@ sp_code <- "lupipere" # Lupinus perennis
 # Modeling database
 nm_db_file <- here("_data", "databases", "CEMdata.sqlite")
 
-# map projection
-projPA <- CRS("+proj=aea +lat_1=40 +lat_2=42 +lat_0=39 +lon_0=-78 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs") #projection for PA
+# species data 
+spData <- here::here("_data","other_spatial","modeling_data.gdb", "speciesdata")
 
 # project area, shapefile or gdb feature class
-project_area <- here::here("_data","other_spatial","modeling_data.gdb", "bnd_PAstate")
+studyArea <- here::here("_data","other_spatial","modeling_data.gdb", "boundPAstate")
 
 # your name
 modeller = "Christopher Tracey"
 
-options(useFancyQuotes=FALSE) # needed to make sure SQL queries work as well as they could
+
+# Here's a function we'll use to plot SDM projections
+project.sdm <- function(prediction, plotName){
+  sp::plot(prediction, main = plotName)
+  sp::plot(studyArea, add = T)
+  points(sp_coords, pch = 16, cex = .4)
+  legend("bottomright", legend = "D. californica occ.", pch = 16, cex=.4)
+}
+
 
 # Step 2: Run a Model
 
