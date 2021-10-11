@@ -8,6 +8,10 @@ db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
 sp_data <- dbGetQuery(db_cem, paste("SELECT * FROM lkpSpecies WHERE CUTECODE = " , sQuote(sp_code), sep="") )
 dbDisconnect(db_cem)
 
+model_run_name <- paste0(sp_code, "_" , gsub(" ","_",gsub(c("-|:"),"",as.character(Sys.time()))))
+
+
+
 # get the species data ################################################################################################
 spData <- arc.open(spData)
 spData <- arc.select(spData)
@@ -18,6 +22,9 @@ ifelse(!dir.exists(here::here("_data","species",sp_code,"input")), dir.create(he
 ifelse(!dir.exists(here::here("_data","species",sp_code,"output")), dir.create(here::here("_data","species",sp_code,"output")), FALSE)
 # write.csv(species_pts, here::here("_data", "species", sp_code, "input", paste0(sp_code,"_input.csv")))
 st_write(spData, here::here("_data", "species", sp_code, "input", paste0(sp_code,"_input.shp")), append=FALSE)
+
+# get some metadata
+md_ptTraining <- nrow(spData)
 
 
 # get the basemap data ################################################################################################
@@ -131,3 +138,15 @@ response(sdm_maxent)
 
 # Look at variable contribution for maxent
 plot(sdm_maxent)
+
+
+#############################################
+# insert metadata into database
+sf_metadata <- data.frame("sp_code"=sp_code, "model_run_name"=model_run_name, "modeller"=modeller, "md_ptTraining"=md_ptTraining)  
+  db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
+  SQLquery <- paste("INSERT INTO model_runs (sp_code, model_run_name, modeller,TrainingPoints) VALUES (",paste(sQuote(sf_metadata[1,]), collapse = ','),");", sep="")
+  dbExecute(db_cem, SQLquery )
+  dbDisconnect(db_cem)
+
+rm(md_ptTraining)
+
