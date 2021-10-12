@@ -28,7 +28,10 @@ spData <- here::here("_data","other_spatial","modeling_data.gdb", "speciesdata")
 
 # project area, shapefile or gdb feature class
 studyArea <- here::here("_data","other_spatial","modeling_data.gdb", "boundPAstate")
+#studyArea <- here::here("_data","other_spatial","modeling_data.gdb", "bound_pro") # this one matches the AdaptWest rasters
 
+pathPredictorsCurrent <- here::here("_data","env_vars","ensemble_ssp245_2011_bioclim")
+pathPredictorsFuture <- here::here("_data","env_vars","ensemble_ssp245_2041_bioclim")
 # your name
 modeller = "Christopher Tracey"
 

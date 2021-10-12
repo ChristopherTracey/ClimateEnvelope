@@ -43,7 +43,6 @@ ggplot() +
   geom_sf(studyArea, mapping=aes(fill=Id)) +
   geom_sf(spData, mapping=aes(col=EORANK))
 
-
 # convert species points to a lat/long df  MOVE THIS BELOW???
 sp_coords <- data.frame(st_coordinates(spData[,1]))
 names(sp_coords) <- c("lon","lat")
@@ -51,9 +50,9 @@ names(sp_coords) <- c("lon","lat")
 
 # get the predictor data ##############################################################################################
 cat("Loading the predictor data...")
-predictors_Current <- stack(list.files(here::here("_data","env_vars","Climate_Current"), pattern = 'asc$', full.names=TRUE ))
+predictors_Current <- stack(list.files(pathPredictorsCurrent, pattern = 'tif$', full.names=TRUE ))
 predictors_Current <- projectRaster(predictors_Current, crs=crs(studyArea))
-predictors_Future <- stack(list.files(here::here("_data","env_vars","Climate_Future2050rfp45"), pattern = 'asc$', full.names=TRUE ))
+predictors_Future <- stack(list.files(pathPredictorsFuture, pattern = 'tif$', full.names=TRUE ))
 predictors_Future <- projectRaster(predictors_Future, crs=crs(studyArea))
 
 # check to see if the names are the same
@@ -61,7 +60,7 @@ setdiff(names(predictors_Current), names(predictors_Future))
 setdiff(names(predictors_Future), names(predictors_Current))
 
 # extract values to point from the raster stack
-presVals <- raster::extract(predictors_Current1, spData, method="simple")
+presVals <- raster::extract(predictors_Current, spData, method="simple")
 
 # These are 500 random locations, used as in place of absence values as 
 # 'pseudoabsences' (the species probably doesn't occur at any random point)
@@ -90,13 +89,23 @@ names(sdm.pkg.df_pres)[1:2] <- c("x", "y")
 sdm.pkg.df_abs <- data.frame(cbind(backgr, absVals))
 sdm.pkg.df_abs$Ey <- 0
 sdmdf_sdmpkg <- rbind(sdm.pkg.df_pres, sdm.pkg.df_abs)
-sdmdata_sdmpkg <- sdmData(Ey ~ CMD + DD5 + MAP + MAR + MSP + PAS + RH + TD, train=sdmdf_sdmpkg)
+sdmdata_sdmpkg <- sdmData(Ey ~ AHM + bFFP + CMD + CMI + DD_0 + DD_18 + DD1040 + DD18 + DD5 + eFFP + EMT + Eref + EXT + FFP + MAP + MAR + MAT + MCMT + MSP + MWMT + NFFD + PAS + PPT_at + PPT_sm + PPT_sp + PPT_wt + RH + SHM + Tave_at + Tave_sm + Tave_sp + Tave_wt + TD, train=sdmdf_sdmpkg)
+
+# get shared data
+
+#also get correlated env var information
+db_cem <- dbConnect(SQLite(), dbname=nm_db_file)
+SQLquery <- "SELECT rasName, CorrGroup FROM lkpEnvVar WHERE CorrGroup IS NOT NULL order by CorrGroup;"
+corrdEVs <- dbGetQuery(db_cem, statement = SQLquery)
+dbDisconnect(db_cem)
+rm(db_cem, SQLquery)
+
 
 #####################################################################################
 # General Linear Model
 
 # Run a GLM model using the sdm package
-sdm_ml.glm <- sdm::sdm(Ey ~ CMD + DD5 + MAP + MAR + MSP + PAS + RH + TD, data=sdmdata_sdmpkg, methods=c("glm"))
+sdm_ml.glm <- sdm::sdm(Ey ~ AHM + bFFP + CMD + CMI + DD_0 + DD_18 + DD1040 + DD18 + DD5 + eFFP + EMT + Eref + EXT + FFP + MAP + MAR + MAT + MCMT + MSP + MWMT + NFFD + PAS + PPT_at + PPT_sm + PPT_sp + PPT_wt + RH + SHM + Tave_at + Tave_sm + Tave_sp + Tave_wt + TD , data=sdmdata_sdmpkg, methods=c("glm"))
 prediction_ml.glm <- raster::predict(sdm_ml.glm, predictors_Current)
 project.sdm(prediction_ml.glm, "GLM SDM")
 
@@ -111,7 +120,7 @@ sdm::installAll()
 library(sdm)
 
 # Run the model and project
-sdm_rf <- sdm::sdm(Ey ~ CMD + DD5 + MAP + MAR + MSP + PAS + RH + TD, data=sdmdata_sdmpkg, methods=c("rf"))
+sdm_rf <- sdm::sdm(Ey ~ AHM + bFFP + CMD + CMI + DD_0 + DD_18 + DD1040 + DD18 + DD5 + eFFP + EMT + Eref + EXT + FFP + MAP + MAR + MAT + MCMT + MSP + MWMT + NFFD + PAS + PPT_at + PPT_sm + PPT_sp + PPT_wt + RH + SHM + Tave_at + Tave_sm + Tave_sp + Tave_wt + TD, data=sdmdata_sdmpkg, methods=c("rf"))
 prediction_rf <- raster::predict(sdm_rf, predictors_Current)
 project.sdm(prediction_rf, "Random Forest SDM")
 getVarImp(sdm_rf)
@@ -126,11 +135,51 @@ project.sdm(prediction_rf_future, "Random Forest Future SDM")
 # and place it here:
 system.file("java", package="dismo")
 
-sdm_maxent <- maxent(predictors_Current, sp_coords)
-prediction_maxent <- dismo::predict(sdm_maxent, predictors_Current)
+cat("Running a test model for variable filtering...")
+cem_MaxEntTest <- maxent(predictors_Current, sp_coords, silent=TRUE)
+# remove the least important variables
+me.dat <- as.data.frame(slot(cem_MaxEntTest, "results"))
+me.imp.dat <- me.dat[grepl("permutation.importance",rownames(me.dat)), ,drop = FALSE]
+me.imp.dat <- cbind(me.imp.dat, "var" = unlist(lapply(rownames(me.imp.dat), FUN = function(x) strsplit(x, "\\.")[[1]][[1]])))
+
+impvals <- me.imp.dat
+names(impvals) <- c("imp","var")
+
+OriginalNumberOfEnvars <- nrow(impvals)
+
+#corrdEVs <- corrdEVs[tolower(corrdEVs$gridName) %in% impvals$var,]
+if(nrow(corrdEVs) > 0 ){
+  for(grp in unique(corrdEVs$CorrGroup)){
+    vars <- corrdEVs[corrdEVs$CorrGroup == grp,"rasName"]
+    imp.sub <- impvals[impvals$var %in% vars,, drop = FALSE]
+    varsToDrop <- imp.sub[!imp.sub$imp == max(imp.sub$imp),, drop = FALSE]#suppressWarnings()
+    impvals <- impvals[!impvals$var %in% varsToDrop$var,,drop = FALSE]
+  }
+  rm(vars, imp.sub, varsToDrop)
+}
+
+# set the percentile, here choosing above 25% percentile
+envarPctile <- 0.1
+y <- quantile(impvals$imp, probs = envarPctile)
+impEnvVars <- impvals[impvals$imp > y,]
+subsetNumberofEnvars <- nrow(impEnvVars)
+rm(y)
+# which columns are these, then flip the non-envars to TRUE
+impEnvVarCols <-names(predictors_Current)[which(names(predictors_Current) %in% impEnvVars$var)]
+# subset!
+predictors_Current1 <- raster::subset(predictors_Current, impEnvVarCols)
+predictors_Future1 <- raster::subset(predictors_Future, impEnvVarCols)
+
+# reset the indvarcols object
+#indVarCols <- c(6:length(names(me.df.full)))
+rm(impvals, impEnvVars, impEnvVarCols)
+
+# ########################
+sdm_maxent <- maxent(predictors_Current1, sp_coords)
+prediction_maxent <- dismo::predict(sdm_maxent, predictors_Current1)
 project.sdm(prediction_maxent, "MaxEnt SDM ")
 
-prediction_maxent_future <- dismo::predict(sdm_maxent, predictors_Future)
+prediction_maxent_future <- dismo::predict(sdm_maxent, predictors_Future1)
 project.sdm(prediction_maxent_future, "MaxEnt SDM Future")
 
 # Look at response for each predictor
