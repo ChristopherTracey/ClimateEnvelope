@@ -68,13 +68,9 @@ for (i in 1:length(gridlist)){
 }
 
 
-#######################################################
-#### Create raster stack from clipped raster layers ###
+# rename files
+srcString <- str_replace(basename(pathToTifs), "bioclim", "")
 
-
-
-# renamefiles
-srcString <- "ensemble_ssp245_2011_"
 fromfiles <- list.files(pathToClipped, pattern=srcString)
 tofiles <- str_replace(fromfiles, srcString, "")
 
@@ -89,10 +85,7 @@ names(cliplist) <- nm
 predictors_Current <- stack(cliplist) #Reads in .asc files as a raster stack
 
 ###########################################################
-# NEW STUFF - check for correlated variable groups and write to the database
-
-#predictors_Current <- stack(list.files(here::here("_data","env_vars","Climate_Current"), pattern = 'asc$', full.names=TRUE ))
-# Automatic selection of variables not intercorrelated (likely doesn't choose the "right" reps)
+# check for correlated variable groups and write to the database
 corr <- removeCollinearity(predictors_Current, plot=TRUE, multicollinearity.cutoff=0.8, select.variables=FALSE)
 names(corr) <- seq(1:length(corr))
 corr <- unlist(corr)
