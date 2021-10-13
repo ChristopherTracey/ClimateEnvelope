@@ -82,6 +82,10 @@ View(sdmdata)
 
 # PREP THE DATA for the SDM package ##############################################
 
+# get a list of variables
+VarList <- names(predictors_Current)
+VarListModelEq <- paste(VarList, collapse=" + ")
+
 # Prep data format for the sdm package
 sdm.pkg.df_pres <- cbind(sp_coords, presVals)
 sdm.pkg.df_pres$Ey <- 1
@@ -89,9 +93,13 @@ names(sdm.pkg.df_pres)[1:2] <- c("x", "y")
 sdm.pkg.df_abs <- data.frame(cbind(backgr, absVals))
 sdm.pkg.df_abs$Ey <- 0
 sdmdf_sdmpkg <- rbind(sdm.pkg.df_pres, sdm.pkg.df_abs)
-sdmdata_sdmpkg <- sdmData(Ey ~ AHM + bFFP + CMD + CMI + DD_0 + DD_18 + DD1040 + DD18 + DD5 + eFFP + EMT + Eref + EXT + FFP + MAP + MAR + MAT + MCMT + MSP + MWMT + NFFD + PAS + PPT_at + PPT_sm + PPT_sp + PPT_wt + RH + SHM + Tave_at + Tave_sm + Tave_sp + Tave_wt + TD, train=sdmdf_sdmpkg)
+eq <- as.formula(paste0("Ey ~ ", VarListModelEq))
+sdmdata_sdmpkg <- sdmData(eq, train=sdmdf_sdmpkg)
 
 # get shared data
+
+
+
 
 #also get correlated env var information
 db_cem <- dbConnect(SQLite(), dbname=nm_db_file)
@@ -105,7 +113,7 @@ rm(db_cem, SQLquery)
 # General Linear Model
 
 # Run a GLM model using the sdm package
-sdm_ml.glm <- sdm::sdm(Ey ~ AHM + bFFP + CMD + CMI + DD_0 + DD_18 + DD1040 + DD18 + DD5 + eFFP + EMT + Eref + EXT + FFP + MAP + MAR + MAT + MCMT + MSP + MWMT + NFFD + PAS + PPT_at + PPT_sm + PPT_sp + PPT_wt + RH + SHM + Tave_at + Tave_sm + Tave_sp + Tave_wt + TD , data=sdmdata_sdmpkg, methods=c("glm"))
+sdm_ml.glm <- sdm::sdm(eq, data=sdmdata_sdmpkg, methods=c("glm"))
 prediction_ml.glm <- raster::predict(sdm_ml.glm, predictors_Current)
 project.sdm(prediction_ml.glm, "GLM SDM")
 
@@ -120,10 +128,16 @@ sdm::installAll()
 library(sdm)
 
 # Run the model and project
-sdm_rf <- sdm::sdm(Ey ~ AHM + bFFP + CMD + CMI + DD_0 + DD_18 + DD1040 + DD18 + DD5 + eFFP + EMT + Eref + EXT + FFP + MAP + MAR + MAT + MCMT + MSP + MWMT + NFFD + PAS + PPT_at + PPT_sm + PPT_sp + PPT_wt + RH + SHM + Tave_at + Tave_sm + Tave_sp + Tave_wt + TD, data=sdmdata_sdmpkg, methods=c("rf"))
+sdm_rf <- sdm::sdm(eq, data=sdmdata_sdmpkg, methods=c("rf"))
 prediction_rf <- raster::predict(sdm_rf, predictors_Current)
 project.sdm(prediction_rf, "Random Forest SDM")
 getVarImp(sdm_rf)
+
+
+
+
+
+
 
 prediction_rf_future <- raster::predict(sdm_rf, predictors_Future)
 project.sdm(prediction_rf_future, "Random Forest Future SDM")
@@ -147,7 +161,7 @@ names(impvals) <- c("imp","var")
 
 OriginalNumberOfEnvars <- nrow(impvals)
 
-#corrdEVs <- corrdEVs[tolower(corrdEVs$gridName) %in% impvals$var,]
+# correlated variables are gotten above for all models
 if(nrow(corrdEVs) > 0 ){
   for(grp in unique(corrdEVs$CorrGroup)){
     vars <- corrdEVs[corrdEVs$CorrGroup == grp,"rasName"]
@@ -159,7 +173,7 @@ if(nrow(corrdEVs) > 0 ){
 }
 
 # set the percentile, here choosing above 25% percentile
-envarPctile <- 0.1
+envarPctile <- 0.25
 y <- quantile(impvals$imp, probs = envarPctile)
 impEnvVars <- impvals[impvals$imp > y,]
 subsetNumberofEnvars <- nrow(impEnvVars)
