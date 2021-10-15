@@ -1,8 +1,21 @@
+# GOALS
+# - run three models (maxent, rf, and glm)
+# - evaluate each individual model
+# - create framework to compare and create ensemble models
+# - stack models within species groups
+
 library(here)
 library(dismo)
 library(arcgisbinding)
 arc.check_product()
 library(ggplot2)
+library(RSQLite)
+library(sf)
+library(tidyverse)
+library(sdm)
+
+options(useFancyQuotes=FALSE) # needed to make sure SQL queries work as well as they could
+
 
 # species code (from lkpSpecies in modelling database. This will be the new folder name containing inputs/outputs)
 sp_code <- "lupipere" # Lupinus perennis
@@ -10,16 +23,46 @@ sp_code <- "lupipere" # Lupinus perennis
 # Modeling database
 nm_db_file <- here("_data", "databases", "CEMdata.sqlite")
 
-# map projection
-projPA <- CRS("+proj=aea +lat_1=40 +lat_2=42 +lat_0=39 +lon_0=-78 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs") #projection for PA
+# species data 
+spData <- here::here("_data","other_spatial","modeling_data.gdb", "speciesdata")
+
+# project area, shapefile or gdb feature class
+studyArea <- here::here("_data","other_spatial","modeling_data.gdb", "boundPAstate")
+#studyArea <- here::here("_data","other_spatial","modeling_data.gdb", "bound_pro") # this one matches the AdaptWest rasters
+
+pathPredictorsCurrent <- here::here("_data","env_vars","ensemble_ssp245_2011_bioclim")
+pathPredictorsFuture <- here::here("_data","env_vars","ensemble_ssp245_2041_bioclim")
+# your name
+modeller = "Christopher Tracey"
 
 
-options(useFancyQuotes=FALSE) # needed to make sure SQL queries work as well as they could
+
+# Here's a function to plot the current and future HSM projections
+project.sdm <- function(prediction, plotName){
+  rng = range(c(0, 1)) #a range to have the same min and max for both plots
+  map.p <- rasterToPoints(prediction)
+  df <- data.frame(map.p) # Make the points a dataframe for ggplot
+  colnames(df) <- c('Longitude', 'Latitude', 'Probability') # Make appropriate column headings
+  ggplot() +
+    geom_raster(data=df,  mapping=aes(y=Latitude, x=Longitude, fill=Probability)) +
+    scale_fill_gradient2(low="blue", high="red", guide="colorbar", limits=c(floor(rng[1]), ceiling(rng[2]))) +
+    geom_sf(data=studyArea, color='black', fill=NA) +
+    geom_point(data=sp_coords, aes(x=lon, y=lat), color='gray', size=2, shape=4) +
+    ggtitle(plotName) +
+    theme_minimal() +
+    theme(
+      axis.title.x = element_blank(),
+      axis.title.y = element_blank()  
+    )
+    
+}
 
 
-
-
-
+# # Step 2: Run a Model
+# 
+# source("1_PrepSpeciesData.r")
+# source("2_AttributeAndBackground.r")
+# source("3a_MaxEnt.r")
 
 
 
@@ -65,11 +108,7 @@ model_comments = ""
 # comment printed in PDF metadata
 metaData_comments = ""
 
-# your name
-modeller = "Christopher Tracey"
 
 
 
-source("1_PrepSpeciesData.r")
-source("1_PrepSpeciesData.r")
-source("1_PrepSpeciesData.r")
+

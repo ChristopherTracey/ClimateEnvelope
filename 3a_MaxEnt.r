@@ -26,10 +26,6 @@ p <- predict(predictors_Current, xm, ext=ext, progress='')
 # plot(p, main="Maxent, raw values - Present")
 # plot(sf::st_geometry(bndPA), add=TRUE)
 
-
-
-
-
 # predict to the future!
 pfut <- predict(predictors_Future, xm, ext=ext, progress='')
 # plot(pfut, main="Maxent, raw values - Future")
