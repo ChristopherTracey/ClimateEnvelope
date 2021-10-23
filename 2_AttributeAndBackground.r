@@ -21,7 +21,6 @@ setdiff(names(predictors_Future), names(predictors_Current))
 points_attributed <- raster::extract(predictors_Current, species_sf, method="simple", sp=TRUE)
 points_attributed <- st_as_sf(points_attributed)
 
-
 # look for near zero variation for each attributed variable ##############################################################
 cat("Looking for any near zero variation in the variables...")
 ptsAtt_df <-points_attributed

@@ -1,9 +1,51 @@
+####################
 
-# MaxEnt Model ########################################################################################################
 # split into groups for k-fold cross validation
 group <- kfold(species_pts,5)
 pres_train <- species_pts[group!=1,]
 pres_test <- species_pts[group==1,]
+
+# MaxEnt Model ########################################################################################################
+
+ifelse(!dir.exists(here::here("_data","species",sp_code,"output","maxent")), dir.create(here::here("_data","species",sp_code,"output","maxent")), FALSE)
+
+outPath <- here::here("_data","species",sp_code,"output","maxent")
+
+me.out <- maxent(predictors_Current, pres_train, path=outPath)
+
+# remove the least important variables
+me.dat <- as.data.frame(slot(me.out, "results"))
+me.imp.dat <- me.dat[grepl("permutation.importance",rownames(me.dat)), ,drop = FALSE]
+me.imp.dat <- cbind(me.imp.dat, "var" = unlist(lapply(rownames(me.imp.dat), FUN = function(x) strsplit(x, "\\.")[[1]][[1]])))
+impvals <- me.imp.dat
+names(impvals) <- c("imp","var")
+
+OriginalNumberOfEnvars <- nrow(impvals)
+
+db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
+corrdEVs <- dbGetQuery(db_cem, "SELECT rasCode, CorrGroup FROM lkpEnvVar WHERE CorrGroup  IS NOT NULL order by CorrGroup ;" )
+dbDisconnect(db_cem)
+
+corrdEVs <- corrdEVs[corrdEVs$rasCode %in% impvals$var,]
+if(nrow(corrdEVs) > 0 ){
+  for(grp in unique(corrdEVs$CorrGroup)){
+    vars <- corrdEVs[corrdEVs$CorrGroup == grp,"rasCode"]
+    imp.sub <- impvals[impvals$var %in% vars,, drop = FALSE]
+    suppressWarnings(varsToDrop <- imp.sub[!imp.sub$imp == max(imp.sub$imp),, drop = FALSE])
+    impvals <- impvals[!impvals$var %in% varsToDrop$var,,drop = FALSE]
+  }
+  rm(vars, imp.sub, varsToDrop)
+}
+
+
+
+
+
+
+
+
+
+
 
 # make the model
 xm <- maxent(predictors_Current, pres_train)
