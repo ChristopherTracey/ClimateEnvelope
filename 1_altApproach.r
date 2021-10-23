@@ -109,13 +109,27 @@ dbDisconnect(db_cem)
 rm(db_cem, SQLquery)
 
 
+b <- sdm(eq, data=sdmdata_sdmpkg, methods=c('rf','glm','maxent'), replicatin='sub', test.percent=30, n=2)
+
+b
+roc(b, smooth = TRUE)
+b.var <- getVarImp(b)
+
 #####################################################################################
 # General Linear Model
+
 
 # Run a GLM model using the sdm package
 sdm_ml.glm <- sdm::sdm(eq, data=sdmdata_sdmpkg, methods=c("glm"))
 prediction_ml.glm <- raster::predict(sdm_ml.glm, predictors_Current)
 project.sdm(prediction_ml.glm, "GLM SDM")
+
+rcurve(sdm_ml.glm)
+roc(sdm_ml.glm)
+a <- getVarImp(sdm_ml.glm)
+
+a@varImportance
+
 
 # predict to the future
 prediction_ml.glm_future <- raster::predict(sdm_ml.glm, predictors_Future)
@@ -129,14 +143,10 @@ library(sdm)
 
 # Run the model and project
 sdm_rf <- sdm::sdm(eq, data=sdmdata_sdmpkg, methods=c("rf"))
+sdm_rf <- sdm::sdm(eq, data=sdmdata_sdmpkg, methods=c("rf"), replication='sub', test.percent=30, n=10)
 prediction_rf <- raster::predict(sdm_rf, predictors_Current)
 project.sdm(prediction_rf, "Random Forest SDM")
-getVarImp(sdm_rf)
-
-
-
-
-
+rf_VarImport <- getVarImp(sdm_rf)
 
 
 prediction_rf_future <- raster::predict(sdm_rf, predictors_Future)

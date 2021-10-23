@@ -35,7 +35,7 @@ clpextent<- st_bbox(studyArea)
 ###### Clip a set of .tif rasters #####
 #######################################
 
-pathToTifs <- "E:/Refugia/climateData/ensemble_ssp245_2011_bioclim"
+pathToTifs <- "E:/Refugia/climateData/ensemble_ssp245_2041_bioclim"
 
 # the path to write out the clipped rasters to
 pathToClipped <-  here::here("_data","env_vars",basename(pathToTifs))

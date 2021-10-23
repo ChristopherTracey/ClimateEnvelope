@@ -5,14 +5,18 @@
 # - stack models within species groups
 
 library(here)
-library(dismo)
 library(arcgisbinding)
 arc.check_product()
 library(ggplot2)
 library(RSQLite)
 library(sf)
 library(tidyverse)
-library(sdm)
+library(SDMtune)
+library(reshape2)
+library(raster)
+# library(dismo)
+#library(sdm)
+#library(rasterVis)
 
 options(useFancyQuotes=FALSE) # needed to make sure SQL queries work as well as they could
 
@@ -20,11 +24,14 @@ options(useFancyQuotes=FALSE) # needed to make sure SQL queries work as well as 
 # species code (from lkpSpecies in modelling database. This will be the new folder name containing inputs/outputs)
 sp_code <- "lupipere" # Lupinus perennis
 
+# model methods
+ModelMethods <- c("Maxent","BRT","RF")
+
 # Modeling database
 nm_db_file <- here("_data", "databases", "CEMdata.sqlite")
 
 # species data 
-spData <- here::here("_data","other_spatial","modeling_data.gdb", "speciesdata")
+spData_path <- here::here("_data","other_spatial","modeling_data.gdb", "speciesdata")
 
 # project area, shapefile or gdb feature class
 studyArea <- here::here("_data","other_spatial","modeling_data.gdb", "boundPAstate")
