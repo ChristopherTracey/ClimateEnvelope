@@ -48,16 +48,25 @@ ifelse(!dir.exists(here::here("_data","species",sp_code,"output")), dir.create(h
 st_write(spData, here::here("_data", "species", sp_code, "input", paste0(sp_code,"_input.shp")), append=FALSE)
 
 # get some metadata
-md_ptTraining <- nrow(spData)
+
 
 # convert species points to a lat/long df  MOVE THIS BELOW???
 coords_pres <- data.frame(st_coordinates(spData_pro[,1]))
 names(coords_pres) <- c("x","y")
+md_ptTraining <- nrow(coords_pres) # get some metadata
+
+# thin out the points to only one per cell
+coords_pres_thin <- thinData(coords_pres, predictors_Current)
+md_ptTrainingThinned <- nrow(spData) # get some metadata
 
 # background coordinates
 # These are 500 random locations, used as in place of absence values as 
 # 'pseudoabsences' (the species probably doesn't occur at any random point)
 coords_bg <- as.data.frame(dismo::randomPoints(predictors_Current, 500))
+md_bg <- nrow(coords_bg) # get some metadata
+coords_bg_thin <- thinData(coords_bg, predictors_Current)
+md_bgThinned <- nrow(coords_bg_thin) # get some metadata
+
 
 # # check to see if the coordinate systems are the same
 # a <- stringr::str_split(as.character(crs(predictors_Current)), ' ')
@@ -66,7 +75,7 @@ coords_bg <- as.data.frame(dismo::randomPoints(predictors_Current, 500))
 # rm(a,b)
 
 # create SDW object ############################
-data.SWD <- prepareSWD(species=spData$SNAME, p=coords_pres, a=coords_bg, env=predictors_Current)
+data.SWD <- prepareSWD(species=spData$SNAME, p=coords_pres_thin, a=coords_bg_thin, env=predictors_Current)
 data.SWD
 
 ################################################3333333333333333333
