@@ -76,8 +76,16 @@ data.SWD
 for(i in 1:length(ModelMethods)){
   cat("--------------------------------------------------------\n")
   cat(paste("Running a ", ModelMethods[i], " model for ", unique(spData$SNAME),".\n", sep=""))
-  model <- train(method=ModelMethods[i], data=data.SWD)  # model <- train(method = "Maxent", data = data, fc = "lh", reg = 0.5, iter = 700)
-  model
+  # create folds for crossvalidated model
+  folds <- randomFolds(data.SWD, k=4, only_presence=TRUE, seed=5)
+  cv_model <- train(ModelMethods[i], data=data.SWD, folds=folds)
+  cv_model
+  auc(cv_model)
+  auc(cv_model, test=TRUE)
+  
+  #model <- train(method=ModelMethods[i], data=data.SWD)  # model <- train(method = "Maxent", data = data, fc = "lh", reg = 0.5, iter = 700)
+  #model
+  
   # calculating 
   cat("- variable importance\n")
   if(ModelMethods[i]=="Maxent"){
@@ -85,9 +93,17 @@ for(i in 1:length(ModelMethods)){
     # vi
     # plotVarImp(vi[, 1:2])
   } else if(ModelMethods[i]=="RF"|ModelMethods[i]=="BRT") {
-    vi <- SDMtune::varImp(model) 
+    vi <- SDMtune::varImp(cv_model) 
     vi
-    plotVarImp(vi[, 1:2])   
+    plotVarImp(vi[, 1:2])
+    
+    
+    # jacknifing approach to variable selection
+    cat("Testing TSS before: ", tss(cv_model, test=TRUE))
+    reduced_variables_model <- reduceVar(cv_model, th=15, metric="tss", permut=1, use_jk=TRUE)
+    cat("The following variables were used in the final model:", names(reduced_variables_model@data@data), "\n")
+    cat("Testing TSS after: ", tss(reduced_variables_model, test=TRUE))
+    
   } else {
     cat("No valid variable importance method exists...")
   }
@@ -98,7 +114,7 @@ for(i in 1:length(ModelMethods)){
   if(ModelMethods[i]=="Maxent"){
     map <- predict(model, data=predictors_Current, type="cloglog")
   } else if(ModelMethods[i]=="RF"|ModelMethods[i]=="BRT") {
-    map <- predict(model, data=predictors_Current)
+    map <- predict(reduced_variables_model, data=predictors_Current)
   } else {
     cat("No valid model predictor method exists...")
   }
@@ -109,7 +125,7 @@ for(i in 1:length(ModelMethods)){
   cat("- predicting the model to the future env predictors\n")
   timeframe <- "future"
   if(ModelMethods[i]=="Maxent"){
-    map <- predict(model, data=predictors_Future, type="cloglog")
+    map <- predict(reduced_variables_model, data=predictors_Future, type="cloglog")
   } else if(ModelMethods[i]=="RF"|ModelMethods[i]=="BRT") {
     map <- predict(model, data=predictors_Future)
   } else {
