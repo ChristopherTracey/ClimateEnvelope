@@ -1,25 +1,53 @@
+# GOALS
+# - run three models (maxent, rf, and glm)
+# - evaluate each individual model
+# - create framework to compare and create ensemble models
+# - stack models within species groups
+
 library(here)
-library(dismo)
 library(arcgisbinding)
 arc.check_product()
 library(ggplot2)
+library(RSQLite)
+library(sf)
+library(tidyverse)
+library(SDMtune)
+library(reshape2)
+library(raster)
+# library(dismo)
+#library(sdm)
+#library(rasterVis)
+
+options(useFancyQuotes=FALSE) # needed to make sure SQL queries work as well as they could
+source(here::here("helperFunctions.r"))
+
+## STEP 1: Variables and Such ################################
 
 # species code (from lkpSpecies in modelling database. This will be the new folder name containing inputs/outputs)
 sp_code <- "lupipere" # Lupinus perennis
-
+# model methods
+ModelMethods <- c("Maxent","BRT","RF")
 # Modeling database
 nm_db_file <- here("_data", "databases", "CEMdata.sqlite")
+# species data 
+spData_path <- here::here("_data","other_spatial","modeling_data.gdb", "speciesdata")
+# project area, shapefile or gdb feature class
+studyArea <- here::here("_data","other_spatial","modeling_data.gdb", "boundPAstate")
+# predictor datasets
+pathPredictorsCurrent <- here::here("_data","env_vars","ensemble_ssp245_2011_bioclim")
+pathPredictorsFuture <- here::here("_data","env_vars","ensemble_ssp245_2041_bioclim")
+# your name
+modeller = "Christopher Tracey"
 
-# map projection
-projPA <- CRS("+proj=aea +lat_1=40 +lat_2=42 +lat_0=39 +lon_0=-78 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs") #projection for PA
+## STEP 2: Run a Model ################################
 
+source(here::here("1_altApproach_SDMtune.r"))
 
-options(useFancyQuotes=FALSE) # needed to make sure SQL queries work as well as they could
-
-
-
-
-
+# # Step 
+# 
+# source("1_PrepSpeciesData.r")
+# source("2_AttributeAndBackground.r")
+# source("3a_MaxEnt.r")
 
 
 
@@ -65,11 +93,7 @@ model_comments = ""
 # comment printed in PDF metadata
 metaData_comments = ""
 
-# your name
-modeller = "Christopher Tracey"
 
 
 
-source("1_PrepSpeciesData.r")
-source("1_PrepSpeciesData.r")
-source("1_PrepSpeciesData.r")
+
