@@ -5,60 +5,45 @@
 # - stack models within species groups
 
 library(here)
-library(dismo)
 library(arcgisbinding)
 arc.check_product()
 library(ggplot2)
 library(RSQLite)
 library(sf)
 library(tidyverse)
-library(sdm)
+library(SDMtune)
+library(reshape2)
+library(raster)
+# library(dismo)
+#library(sdm)
+#library(rasterVis)
 
 options(useFancyQuotes=FALSE) # needed to make sure SQL queries work as well as they could
+source(here::here("helperFunctions.r"))
 
+## STEP 1: Variables and Such ################################
 
 # species code (from lkpSpecies in modelling database. This will be the new folder name containing inputs/outputs)
 sp_code <- "lupipere" # Lupinus perennis
-
+# model methods
+ModelMethods <- c("Maxent","BRT","RF")
 # Modeling database
 nm_db_file <- here("_data", "databases", "CEMdata.sqlite")
-
 # species data 
-spData <- here::here("_data","other_spatial","modeling_data.gdb", "speciesdata")
-
+spData_path <- here::here("_data","other_spatial","modeling_data.gdb", "speciesdata")
 # project area, shapefile or gdb feature class
 studyArea <- here::here("_data","other_spatial","modeling_data.gdb", "boundPAstate")
-#studyArea <- here::here("_data","other_spatial","modeling_data.gdb", "bound_pro") # this one matches the AdaptWest rasters
-
+# predictor datasets
 pathPredictorsCurrent <- here::here("_data","env_vars","ensemble_ssp245_2011_bioclim")
 pathPredictorsFuture <- here::here("_data","env_vars","ensemble_ssp245_2041_bioclim")
 # your name
 modeller = "Christopher Tracey"
 
+## STEP 2: Run a Model ################################
 
+source(here::here("1_altApproach_SDMtune.r"))
 
-# Here's a function to plot the current and future HSM projections
-project.sdm <- function(prediction, plotName){
-  rng = range(c(0, 1)) #a range to have the same min and max for both plots
-  map.p <- rasterToPoints(prediction)
-  df <- data.frame(map.p) # Make the points a dataframe for ggplot
-  colnames(df) <- c('Longitude', 'Latitude', 'Probability') # Make appropriate column headings
-  ggplot() +
-    geom_raster(data=df,  mapping=aes(y=Latitude, x=Longitude, fill=Probability)) +
-    scale_fill_gradient2(low="blue", high="red", guide="colorbar", limits=c(floor(rng[1]), ceiling(rng[2]))) +
-    geom_sf(data=studyArea, color='black', fill=NA) +
-    geom_point(data=sp_coords, aes(x=lon, y=lat), color='gray', size=2, shape=4) +
-    ggtitle(plotName) +
-    theme_minimal() +
-    theme(
-      axis.title.x = element_blank(),
-      axis.title.y = element_blank()  
-    )
-    
-}
-
-
-# # Step 2: Run a Model
+# # Step 
 # 
 # source("1_PrepSpeciesData.r")
 # source("2_AttributeAndBackground.r")
