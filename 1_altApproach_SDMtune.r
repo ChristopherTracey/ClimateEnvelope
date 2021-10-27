@@ -75,18 +75,21 @@ md_bgThinned <- nrow(coords_bg_thin) # get some metadata
 # rm(a,b)
 
 # create SDW object ############################
-data.SWD <- prepareSWD(species=spData$SNAME, p=coords_pres_thin, a=coords_bg_thin, env=predictors_Current)
+data.SWD <- prepareSWD(species=unique(spData$SNAME), p=coords_pres, a=coords_bg, env=predictors_Current)
 data.SWD
+
+plotCor(data.SWD , method="spearman", cor_th=0.7)
 
 ################################################3333333333333333333
 # run the models ##################################
 #i = 2  # temp just for testing
 
-for(i in 1:length(ModelMethods)){
+for(i in 2:length(ModelMethods)){
   cat("--------------------------------------------------------\n")
   cat(paste("Running a ", ModelMethods[i], " model for ", unique(spData$SNAME),".\n", sep=""))
   # create folds for crossvalidated model
-  folds <- randomFolds(data.SWD, k=4, only_presence=TRUE, seed=5)
+  folds <- randomFolds(data.SWD, k=4, only_presence=TRUE) #, seed=5
+  cv_model <- train(ModelMethods[i], data=data.SWD)
   cv_model <- train(ModelMethods[i], data=data.SWD, folds=folds)
   cv_model
   auc(cv_model)
@@ -98,30 +101,47 @@ for(i in 1:length(ModelMethods)){
   # calculating 
   cat("- variable importance\n")
   if(ModelMethods[i]=="Maxent"){
-    # vi <- maxentVarImp(model)
+  # vi <- maxentVarImp(model)
     # vi
     # plotVarImp(vi[, 1:2])
+    #reduced_variables_model <- varSel(cv_model, metric="tss", bg4cor=bg, method="spearman", cor_th=0.7, use_pc=TRUE)
   } else if(ModelMethods[i]=="RF"|ModelMethods[i]=="BRT") {
-    vi <- SDMtune::varImp(cv_model) 
+    vi <- SDMtune::varImp(cv_model, permut = 10) #,
     vi
     plotVarImp(vi[, 1:2])
     
-    
     # jacknifing approach to variable selection
-    cat("Testing TSS before: ", tss(cv_model, test=TRUE))
-    reduced_variables_model <- reduceVar(cv_model, th=15, metric="tss", permut=1, use_jk=TRUE)
+    md_tssPre <- tss(cv_model, test=TRUE)
+    md_aucPre <- auc(cv_model, test=TRUE)
+    cat("Testing TSS before: ", md_tssPre, "\n")
+    
+   # reduced_variables_model <- varSel(cv_model, metric="tss", bg4cor=bg, method="spearman", cor_th=0.7)
+    reduced_variables_model <- reduceVar(cv_model, th=5, metric="tss", permut=1) #, use_jk=TRUE
+    reduced_variables_model <- reduceVar(cv_model, metric="auc", th=10, use_jk = TRUE)
+    
+    
     cat("The following variables were used in the final model:", names(reduced_variables_model@data@data), "\n")
-    cat("Testing TSS after: ", tss(reduced_variables_model, test=TRUE))
+    md_tssPost <- tss(reduced_variables_model, test=TRUE)
+    md_aucPost <- auc(reduced_variables_model, test=TRUE)
+    cat("Testing TSS after: ", md_tssPost, "\n")
     
   } else {
     cat("No valid variable importance method exists...")
   }
   
+  # insert some model run metadata
+  sf_metadata <- data.frame("sp_code"=sp_code, "model_run_name"=model_run_name, "model_type"=ModelMethods[i], "modeller"=modeller, "TrainingPoints"=md_ptTraining, "TrainingPoints_thinned"=md_ptTrainingThinned, "BackgroundPoints"=md_bg, "BackgroundPoints_thinned"=md_bgThinned, "AUCpre"=md_aucPre, "AUCpost"=md_aucPost, "TSSpre"=md_tssPre, "TSSpost"=md_tssPost)  
+  
+  db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
+  SQLquery <- paste("INSERT INTO model_runs (", paste(names(sf_metadata), collapse = ',') ,") VALUES (",paste(sQuote(sf_metadata[1,]), collapse = ','),");", sep="") #sp_code, model_run_name, modeller,TrainingPoints
+  dbExecute(db_cem, SQLquery )
+  dbDisconnect(db_cem)
+  
   # predict the model to the current env predictors
   cat("- predicting the model to the current env predictors\n")
   timeframe <- "current"
   if(ModelMethods[i]=="Maxent"){
-    map <- predict(model, data=predictors_Current, type="cloglog")
+    map <- predict(reduced_variables_model, data=predictors_Current, type="cloglog")
   } else if(ModelMethods[i]=="RF"|ModelMethods[i]=="BRT") {
     map <- predict(reduced_variables_model, data=predictors_Current)
   } else {
@@ -136,7 +156,7 @@ for(i in 1:length(ModelMethods)){
   if(ModelMethods[i]=="Maxent"){
     map <- predict(reduced_variables_model, data=predictors_Future, type="cloglog")
   } else if(ModelMethods[i]=="RF"|ModelMethods[i]=="BRT") {
-    map <- predict(model, data=predictors_Future)
+    map <- predict(reduced_variables_model, data=predictors_Future)
   } else {
     cat("No valid model predictor method exists...")
   }
@@ -144,5 +164,6 @@ for(i in 1:length(ModelMethods)){
   writeRaster(map, here::here("_data","species",sp_code,"output",paste(model_run_name, "_", ModelMethods[i], "_", timeframe, ".tif", sep="")),  "GTiff", overwrite=TRUE)
   
   # cleanup
+  #rm(cv_model, reduced_variables_model)
   cat("- finished with the model\n")
 }

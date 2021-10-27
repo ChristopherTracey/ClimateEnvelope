@@ -41,7 +41,7 @@ modeller = "Christopher Tracey"
 
 ## STEP 2: Run a Model ################################
 
-source(here::here("altApproach_SDMtune.r"))
+source(here::here("1_altApproach_SDMtune.r"))
 
 # # Step 
 # 
