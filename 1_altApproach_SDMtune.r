@@ -73,20 +73,15 @@ data.SWD
 plotCor(data.SWD , method="spearman", cor_th=0.7)
 
 
-bg_var_sel <- prepareSWD(species = "lupipere", a=coords_bg_thin, env=predictors_Current)
-plotCor(bg_var_sel, method = "spearman", cor_th = 0.7)
-corVar(bg_var_sel, method = "spearman", cor_th = 0.7)
+bg_var_sel <- prepareSWD(species=unique(spData$SNAME), a=coords_bg_thin, env=predictors_Current)
+plotCor(bg_var_sel, method="spearman", cor_th=0.7)
+corVar(bg_var_sel, method="spearman", cor_th=0.7)
 
-################################################3333333333333333333
-# run the models ##################################
+#################################################################################################
+# run the models ################################################################################
 
 # create folds for crossvalidated model
 folds <- randomFolds(data.SWD, k=4, only_presence=TRUE) #, seed=5
-#cv_model <- train(ModelMethods, data=data.SWD)
-# cv_model
-
-
-#i = 2  # temp just for testing
 
 for(i in 2:length(ModelMethods)){
   cat("--------------------------------------------------------\n")
@@ -97,51 +92,51 @@ for(i in 2:length(ModelMethods)){
   
   # calculating 
   cat("- variable importance\n")
-  if(ModelMethods[i]=="Maxent"){
-  # vi <- maxentVarImp(model)
-    # vi
-    # plotVarImp(vi[, 1:2])
-    #reduced_variables_model <- varSel(cv_model, metric="tss", bg4cor=bg, method="spearman", cor_th=0.7, use_pc=TRUE)
+  if(ModelMethods[i]=="Maxent"){ 
+    md_tssPre <- tss(cv_model)
+    md_aucPre <- auc(cv_model)
+    cat("Testing TSS before: ", md_tssPre, "\n")
+    vs <- varSel(cv_model, metric="auc", test=NULL, bg4cor=bg_var_sel, method="spearman", cor_th=0.7, permut=10, use_pc=TRUE) # NOTE: This may take a long time...  long time...
+    cat("The following variables were used in the final model:", names(vs@data@data), "\n")
+    md_tssPost <- tss(vs, test=TRUE)
+    md_aucPost <- auc(vs, test=TRUE)
+    cat("Testing TSS after: ", md_tssPost, "\n")    
+    # calculate variable importance, this is written to the sqlite db later in the script
+    vi <- maxentVarImp(cv_model)
+    plotVarImp(vi[, 1:2])
   } else if(ModelMethods[i]=="RF"|ModelMethods[i]=="BRT") {
     # jacknifing approach to variable selection
     md_tssPre <- tss(cv_model)
     md_aucPre <- auc(cv_model)
     cat("Testing TSS before: ", md_tssPre, "\n")
-    
     vs <- varSel(cv_model, metric="auc", test=NULL, bg4cor=bg_var_sel, method="spearman", cor_th=0.7, permut=10)
-    
     cat("The following variables were used in the final model:", names(vs@data@data), "\n")
     md_tssPost <- tss(vs, test=TRUE)
     md_aucPost <- auc(vs, test=TRUE)
     cat("Testing TSS after: ", md_tssPost, "\n")
-    
+    # calculate variable importance, this is written to the sqlite db later in the script
     vi <- varImp(vs)
-    vi
     plotVarImp(vi[, 1:2])
-    
-    # insert the variable importance into the database
-    md_vi <- cbind("model_run_name"=model_run_name, "model_type"=ModelMethods[i], vi)
-    
-    
-    for(h in 1:nrow(md_vi)){
-      db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
-      SQLquery <- paste("INSERT INTO lkpImpVar (", paste(names(md_vi), collapse = ',') ,") VALUES (",paste(sQuote(md_vi[h,]), collapse = ','),");", sep="") #sp_code, model_run_name, modeller,TrainingPoints
-      dbExecute(db_cem, SQLquery )
-      dbDisconnect(db_cem)
-    }
-    
-    
   } else {
     cat("No valid variable importance method exists...")
   }
 
   # insert some model run metadata
+  cat("Inserting metadata into the database")
   sf_metadata <- data.frame("sp_code"=sp_code, "model_run_name"=model_run_name, "model_type"=ModelMethods[i], "modeller"=modeller, "TrainingPoints"=md_ptTraining, "TrainingPoints_thinned"=md_ptTrainingThinned, "BackgroundPoints"=md_bg, "BackgroundPoints_thinned"=md_bgThinned, "AUCpre"=md_aucPre, "AUCpost"=md_aucPost, "TSSpre"=md_tssPre, "TSSpost"=md_tssPost)
-
   db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
-  SQLquery <- paste("INSERT INTO model_runs (", paste(names(sf_metadata), collapse = ',') ,") VALUES (",paste(sQuote(sf_metadata[1,]), collapse = ','),");", sep="") #sp_code, model_run_name, modeller,TrainingPoints
+  SQLquery <- paste("INSERT INTO model_runs (", paste(names(sf_metadata), collapse = ',') ,") VALUES (",paste(sQuote(sf_metadata[1,]), collapse = ','),");", sep="") 
   dbExecute(db_cem, SQLquery )
   dbDisconnect(db_cem)
+
+  # insert the variable importance into the database
+  md_vi <- cbind("model_run_name"=model_run_name, "model_type"=ModelMethods[i], vi)
+  for(h in 1:nrow(md_vi)){
+    db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
+    SQLquery <- paste("INSERT INTO lkpImpVar (", paste(names(md_vi), collapse = ',') ,") VALUES (",paste(sQuote(md_vi[h,]), collapse = ','),");", sep="") 
+    dbExecute(db_cem, SQLquery )
+    dbDisconnect(db_cem)
+  }
   
   # predict the model to the current env predictors
   cat("- predicting the model to the current env predictors\n")
@@ -154,7 +149,8 @@ for(i in 2:length(ModelMethods)){
     cat("No valid model predictor method exists...")
   }
   plotPred(map) # plot and write the current map
-  writeRaster(map, here::here("_data","species",sp_code,"output",paste(model_run_name, "_", ModelMethods[i], "_", timeframe, ".tif", sep="")),  "GTiff", overwrite=TRUE)
+  rasnameCurrent <- here::here("_data","species",sp_code,"output",paste(model_run_name, "_", ModelMethods[i], "_", timeframe, ".tif", sep=""))
+  writeRaster(map, rasnameCurrent, "GTiff", overwrite=TRUE)
   
   # predict the model to the future env predictors
   cat("- predicting the model to the future env predictors\n")
@@ -167,9 +163,21 @@ for(i in 2:length(ModelMethods)){
     cat("No valid model predictor method exists...")
   }
   plotPred(map) # plot and write the future map
-  writeRaster(map, here::here("_data","species",sp_code,"output",paste(model_run_name, "_", ModelMethods[i], "_", timeframe, ".tif", sep="")),  "GTiff", overwrite=TRUE)
+  rasnameFuture <- here::here("_data","species",sp_code,"output",paste(model_run_name, "_", ModelMethods[i], "_", timeframe, ".tif", sep=""))
+  writeRaster(map, rasnameFuture, "GTiff", overwrite=TRUE)
+  
+  # insert prediction file names into the database
+  cat("Inserting more metadata into the database")
+  
+  predict_future_fn
+  db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
+  SQLquery <- paste("UPDATE model_runs SET predict_current_fn = ", sQuote(rasnameCurrent), " WHERE model_run_name = ", sQuote(model_run_name), " AND model_type = ", sQuote(ModelMethods[i]), sep="") 
+  dbSendStatement(db_cem, SQLquery)
+#  dbExecute(db_cem, SQLquery )
+  dbDisconnect(db_cem)
+  
   
   # cleanup
-  #rm(cv_model, reduced_variables_model)
-  cat("- finished with the model\n")
+  rm(cv_model, vs, vi)
+  cat(paste("Finished with the ", ModelMethods[i], " model for ", unique(spData$SNAME),".\n", sep=""))
 }
