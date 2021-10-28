@@ -67,13 +67,13 @@ md_bgThinned <- nrow(coords_bg_thin) # get some metadata
 # rm(a,b)
 
 # create SDW object ############################
-data.SWD <- prepareSWD(species=unique(spData$SNAME), p=coords_pres, a=coords_bg, env=predictors_Current)
+data.SWD <- prepareSWD(species=unique(spData$SNAME), p=coords_pres_thin, a=coords_bg_thin, env=predictors_Current)
 data.SWD
 
 plotCor(data.SWD , method="spearman", cor_th=0.7)
 
 
-bg_var_sel <- prepareSWD(species = "lupipere", a = coords_bg, env = predictors_Current)
+bg_var_sel <- prepareSWD(species = "lupipere", a=coords_bg_thin, env=predictors_Current)
 plotCor(bg_var_sel, method = "spearman", cor_th = 0.7)
 corVar(bg_var_sel, method = "spearman", cor_th = 0.7)
 
@@ -119,17 +119,29 @@ for(i in 2:length(ModelMethods)){
     vi
     plotVarImp(vi[, 1:2])
     
+    # insert the variable importance into the database
+    md_vi <- cbind("model_run_name"=model_run_name, "model_type"=ModelMethods[i], vi)
+    
+    
+    for(h in 1:nrow(md_vi)){
+      db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
+      SQLquery <- paste("INSERT INTO lkpImpVar (", paste(names(md_vi), collapse = ',') ,") VALUES (",paste(sQuote(md_vi[h,]), collapse = ','),");", sep="") #sp_code, model_run_name, modeller,TrainingPoints
+      dbExecute(db_cem, SQLquery )
+      dbDisconnect(db_cem)
+    }
+    
+    
   } else {
     cat("No valid variable importance method exists...")
   }
-  # 
-  # # insert some model run metadata
-  # sf_metadata <- data.frame("sp_code"=sp_code, "model_run_name"=model_run_name, "model_type"=ModelMethods[i], "modeller"=modeller, "TrainingPoints"=md_ptTraining, "TrainingPoints_thinned"=md_ptTrainingThinned, "BackgroundPoints"=md_bg, "BackgroundPoints_thinned"=md_bgThinned, "AUCpre"=md_aucPre, "AUCpost"=md_aucPost, "TSSpre"=md_tssPre, "TSSpost"=md_tssPost)  
- 
-  # db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
-  # SQLquery <- paste("INSERT INTO model_runs (", paste(names(sf_metadata), collapse = ',') ,") VALUES (",paste(sQuote(sf_metadata[1,]), collapse = ','),");", sep="") #sp_code, model_run_name, modeller,TrainingPoints
-  # dbExecute(db_cem, SQLquery )
-  # dbDisconnect(db_cem)
+
+  # insert some model run metadata
+  sf_metadata <- data.frame("sp_code"=sp_code, "model_run_name"=model_run_name, "model_type"=ModelMethods[i], "modeller"=modeller, "TrainingPoints"=md_ptTraining, "TrainingPoints_thinned"=md_ptTrainingThinned, "BackgroundPoints"=md_bg, "BackgroundPoints_thinned"=md_bgThinned, "AUCpre"=md_aucPre, "AUCpost"=md_aucPost, "TSSpre"=md_tssPre, "TSSpost"=md_tssPost)
+
+  db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
+  SQLquery <- paste("INSERT INTO model_runs (", paste(names(sf_metadata), collapse = ',') ,") VALUES (",paste(sQuote(sf_metadata[1,]), collapse = ','),");", sep="") #sp_code, model_run_name, modeller,TrainingPoints
+  dbExecute(db_cem, SQLquery )
+  dbDisconnect(db_cem)
   
   # predict the model to the current env predictors
   cat("- predicting the model to the current env predictors\n")
