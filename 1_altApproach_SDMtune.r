@@ -83,7 +83,7 @@ corVar(bg_var_sel, method="spearman", cor_th=0.7)
 # create folds for crossvalidated model
 folds <- randomFolds(data.SWD, k=4, only_presence=TRUE) #, seed=5
 
-for(i in 2:length(ModelMethods)){
+for(i in 1:length(ModelMethods)){
   cat("--------------------------------------------------------\n")
   cat(paste("Running a ", ModelMethods[i], " model for ", unique(spData$SNAME),".\n", sep=""))
 
@@ -96,13 +96,14 @@ for(i in 2:length(ModelMethods)){
     md_tssPre <- tss(cv_model)
     md_aucPre <- auc(cv_model)
     cat("Testing TSS before: ", md_tssPre, "\n")
-    vs <- varSel(cv_model, metric="auc", test=NULL, bg4cor=bg_var_sel, method="spearman", cor_th=0.7, permut=10, use_pc=TRUE) # NOTE: This may take a long time...  long time...
+    #vs <- varSel(cv_model, metric="auc", test=NULL, bg4cor=bg_var_sel, method="spearman", cor_th=0.7, permut=10, use_pc=TRUE) # NOTE: This may take a long time...  long time...
+    vs <- reduceVar(cv_model, 5, metric="auc", use_pc=TRUE)
     cat("The following variables were used in the final model:", names(vs@data@data), "\n")
     md_tssPost <- tss(vs, test=TRUE)
     md_aucPost <- auc(vs, test=TRUE)
     cat("Testing TSS after: ", md_tssPost, "\n")    
     # calculate variable importance, this is written to the sqlite db later in the script
-    vi <- maxentVarImp(cv_model)
+    vi <- maxentVarImp(vs)
     plotVarImp(vi[, 1:2])
   } else if(ModelMethods[i]=="RF"|ModelMethods[i]=="BRT") {
     # jacknifing approach to variable selection
@@ -130,13 +131,13 @@ for(i in 2:length(ModelMethods)){
   dbDisconnect(db_cem)
 
   # insert the variable importance into the database
-  md_vi <- cbind("model_run_name"=model_run_name, "model_type"=ModelMethods[i], vi)
-  for(h in 1:nrow(md_vi)){
-    db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
-    SQLquery <- paste("INSERT INTO lkpImpVar (", paste(names(md_vi), collapse = ',') ,") VALUES (",paste(sQuote(md_vi[h,]), collapse = ','),");", sep="") 
-    dbExecute(db_cem, SQLquery )
-    dbDisconnect(db_cem)
-  }
+  # md_vi <- cbind("model_run_name"=model_run_name, "model_type"=ModelMethods[i], vi)
+  # for(h in 1:nrow(md_vi)){
+  #   db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
+  #   SQLquery <- paste("INSERT INTO ImpVar (", paste(names(md_vi), collapse = ',') ,") VALUES (",paste(sQuote(md_vi[h,]), collapse = ','),");", sep="") 
+  #   dbExecute(db_cem, SQLquery )
+  #   dbDisconnect(db_cem)
+  # }
   
   # predict the model to the current env predictors
   cat("- predicting the model to the current env predictors\n")
