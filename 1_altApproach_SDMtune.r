@@ -123,6 +123,15 @@ for(i in 1:length(ModelMethods)){
     cat("The following variables were used in the final model:", names(vs@data@data), "\n")
     md_tssPost <- tss(vs, test=TRUE)
     md_aucPost <- auc(vs, test=TRUE)
+    threshold1 <- as.data.frame(thresholds(vs@models[[1]]))
+    threshold2 <- as.data.frame(thresholds(vs@models[[2]]))
+    threshold3 <- as.data.frame(thresholds(vs@models[[3]]))
+    threshold4 <- as.data.frame(thresholds(vs@models[[4]]))
+    thresholds <- bind_rows(threshold1,threshold2,threshold3,threshold4)
+    names(thresholds)[2] <- "value" #there is a space in this column name for some reason
+    thresholds <- thresholds[thresholds$Threshold=="Minimum training presence",]
+    Thresholdmean_minTrainPres <- mean(thresholds$value)
+    Thresholdsd_minTrainPres <- sd(thresholds$value)
     cat("Testing TSS after: ", md_tssPost, "\n")
     # calculate variable importance, this is written to the sqlite db later in the script
     vi <- varImp(vs)
@@ -277,3 +286,10 @@ future_wm <- weighted.mean(future, w=model_metadata$TSSpost) #weighted mean of t
 
 
 Maxent_current_bin <- calc(Maxent, fun=bin_M)
+
+#re-binning the binary consensus model
+bin_fut <- function(x) {
+  ifelse(x <=  2, 0,
+         ifelse(x >  2, 1, NA)) }
+future_bin2_s <- calc(future_bin_s, fun=bin_fut)
+plot(future_bin2_s) #just the full consensus points
