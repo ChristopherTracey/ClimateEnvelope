@@ -170,7 +170,7 @@ for(i in 1:length(ModelMethods)){
   # insert prediction file names into the database
   cat("Inserting more metadata into the database")
   
-  predict_future_fn
+  #predict_future_fn
   db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
   SQLquery <- paste("UPDATE model_runs SET predict_current_fn = ", sQuote(rasnameCurrent), " WHERE model_run_name = ", sQuote(model_run_name), " AND model_type = ", sQuote(ModelMethods[i]), sep="") 
   dbSendStatement(db_cem, SQLquery)
