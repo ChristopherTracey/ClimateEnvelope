@@ -165,11 +165,18 @@ for(i in 1:length(ModelMethods)){
   } else if(ModelMethods[i]=="RF"|ModelMethods[i]=="BRT") {
     map <- predict(vs, data=predictors_Current)
   } else {
-    cat("No valid model predictor method exists...")
+    cat("No valid model predictor method exists...\n")
   }
   plotPred(map) # plot and write the current map
   rasnameCurrent <- here::here("_data","species",sp_code,"output",paste(model_run_name, "_", ModelMethods[i], "_", timeframe, ".tif", sep=""))
   writeRaster(map, rasnameCurrent, "GTiff", overwrite=TRUE)
+  #predict_current_fn
+  db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
+  SQLquery <- paste("UPDATE model_runs SET predict_current_fn = ", sQuote(rasnameCurrent), " WHERE model_run_name = ", sQuote(model_run_name), " AND model_type = ", sQuote(ModelMethods[i]), sep="") 
+  dbSendStatement(db_cem, SQLquery)
+  dbDisconnect(db_cem)
+  
+  
   
   # predict the model to the future env predictors
   cat("- predicting the model to the future env predictors\n")
@@ -179,21 +186,19 @@ for(i in 1:length(ModelMethods)){
   } else if(ModelMethods[i]=="RF"|ModelMethods[i]=="BRT") {
     map <- predict(vs, data=predictors_Future)
   } else {
-    cat("No valid model predictor method exists...")
+    cat("No valid model predictor method exists...\n")
   }
   plotPred(map) # plot and write the future map
   rasnameFuture <- here::here("_data","species",sp_code,"output",paste(model_run_name, "_", ModelMethods[i], "_", timeframe, ".tif", sep=""))
   writeRaster(map, rasnameFuture, "GTiff", overwrite=TRUE)
   
   # insert prediction file names into the database
-  cat("Inserting more metadata into the database")
+  cat("Inserting more metadata into the database\n")
   
-
   #predict_future_fn
   db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
-  SQLquery <- paste("UPDATE model_runs SET predict_current_fn = ", sQuote(rasnameCurrent), " WHERE model_run_name = ", sQuote(model_run_name), " AND model_type = ", sQuote(ModelMethods[i]), sep="") 
+  SQLquery <- paste("UPDATE model_runs SET predict_future_fn = ", sQuote(rasnameFuture), " WHERE model_run_name = ", sQuote(model_run_name), " AND model_type = ", sQuote(ModelMethods[i]), sep="") 
   dbSendStatement(db_cem, SQLquery)
-#  dbExecute(db_cem, SQLquery )
   dbDisconnect(db_cem)
 
   # cleanup
@@ -207,7 +212,6 @@ for(i in 1:length(ModelMethods)){
 
 #path to model outputs:
 models <- list.files(Model_outputpath) #pull list of files within the model output folder, then use this to select which file to use for which model type
-
 #select which element from models list should be used for each model (change numbers assigned as needed) 
 BRT_current <- models[27]
 BRT_future <- models[28]
