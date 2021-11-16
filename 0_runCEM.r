@@ -42,7 +42,7 @@ pathPredictorsFuture <- here::here("_data","env_vars","ensemble_ssp245_2041_bioc
 modeller = "Christopher Tracey"
 
 #model output path
-Model_outputpath <- here::here(paste("_data/","species","/",sp_code,"/output", sep=""))
+#Model_outputpath <- here::here(paste("_data/","species","/",sp_code,"/output", sep=""))
 
 
 

@@ -149,13 +149,19 @@ for(i in 1:length(ModelMethods)){
   dbDisconnect(db_cem)
 
   # insert the variable importance into the database
-  # md_vi <- cbind("model_run_name"=model_run_name, "model_type"=ModelMethods[i], vi)
-  # for(h in 1:nrow(md_vi)){
-  #   db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
-  #   SQLquery <- paste("INSERT INTO ImpVar (", paste(names(md_vi), collapse = ',') ,") VALUES (",paste(sQuote(md_vi[h,]), collapse = ','),");", sep="") 
-  #   dbExecute(db_cem, SQLquery )
-  #   dbDisconnect(db_cem)
-  # }
+  md_vi <- data.frame(Variable=character(),
+                      Percent_contribution=double(),
+                      Permutation_importance=double(),
+                      sd=double(),
+                      stringsAsFactors=FALSE)
+  md_vi <- bind_rows(md_vi, vi)
+  md_vi <- cbind("model_run_name"=model_run_name, "model_type"=ModelMethods[i], md_vi)
+  for(h in 1:nrow(md_vi)){
+    db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
+    SQLquery <- paste("INSERT INTO ImpVar (", paste(names(md_vi), collapse = ',') ,") VALUES (",paste(sQuote(md_vi[h,]), collapse = ','),");", sep="") 
+    dbExecute(db_cem, SQLquery )
+    dbDisconnect(db_cem)
+  }
   
   # predict the model to the current env predictors
   cat("- predicting the model to the current env predictors\n")
@@ -271,7 +277,7 @@ Maxent_current_bin <- calc(Maxent, fun=bin_M)
 
 #re-binning the binary consensus model
 bin_fut <- function(x) {
-  ifelse(x <=  2, 0,
-         ifelse(x >  2, 1, NA)) }
+  ifelse(x <= 2, 0,
+         ifelse(x > 2, 1, NA)) }
 future_bin2_s <- calc(future_bin_s, fun=bin_fut)
 plot(future_bin2_s) #just the full consensus points
