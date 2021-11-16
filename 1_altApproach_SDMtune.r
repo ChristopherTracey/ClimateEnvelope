@@ -210,60 +210,37 @@ for(i in 1:length(ModelMethods)){
 #Build stacked ensemble model ########
 #################################################################
 
-#path to model outputs:
-models <- list.files(Model_outputpath) #pull list of files within the model output folder, then use this to select which file to use for which model type
-#select which element from models list should be used for each model (change numbers assigned as needed) 
-BRT_current <- models[27]
-BRT_future <- models[28]
-Maxent_current <- models[29]
-Maxent_future <- models[30]
-RF_current <- models[31]
-RF_future <- models[32]
-
-model_v <- c(BRT_current, Maxent_future, RF_current) #just need one row of metadata for a pair of current/future models
-model_v2 <- stringr::str_extract(model_v, "[^_]*_[^_]*_[^_]*") #extract everything before the third underscore (to match SQL naming in db)
-model_methods <- c("BRT","Maxent","RF")
-
-BRT_currentp <- paste(Model_outputpath,BRT_current,sep="/")
-BRT_futurep <- paste(Model_outputpath,BRT_future,sep="/")
-Maxent_currentp <- paste(Model_outputpath,Maxent_current,sep="/")
-Maxent_futurep <- paste(Model_outputpath,Maxent_future,sep="/")
-RF_currentp <- paste(Model_outputpath,RF_current,sep="/")
-RF_futurep <- paste(Model_outputpath,RF_future,sep="/")
-
-#pull the associated model metadata
+# get model output names from metadata
 db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
-SQLquery <- paste("SELECT * FROM MODEL_RUNS WHERE MODEL_RUN_NAME IN (", paste0(sprintf("'%s'", model_v2), collapse = ", "), ")") 
+SQLquery <- paste("SELECT model_run_name, model_type, predict_current_fn, predict_future_fn, Thresholdmean_minTrainPres, Thresholdsd_minTrainPres, TSSpost FROM MODEL_RUNS WHERE model_run_name = ", sQuote(model_run_name)) 
 model_metadata <- dbGetQuery(db_cem, SQLquery)
 dbDisconnect(db_cem)
 
-#if there are too many rows (i.e. a duplicate model run, fix that mnaually)
-#model_metadata <- model_metadata[-1,]
-model_metadata <- model_metadata[match(model_methods, model_metadata$model_type),] #sort metadata so it is in the same model type order as the model methods vector
+model_metadata <- unique(model_metadata)
 
 #binarize individual rasters, based on the minimum training presence threshold
 
 #threshold values
-Maxent_t <- model_metadata$Thresholdmean_minTrainPres[2]
-BRT_t <- model_metadata$Thresholdmean_minTrainPres[1]
-RF_t <- model_metadata$Thresholdmean_minTrainPres[3]
+Maxent_t <- model_metadata[which(model_metadata$model_type=="Maxent"),"Thresholdmean_minTrainPres"] 
+BRT_t <- model_metadata[which(model_metadata$model_type=="BRT"),"Thresholdmean_minTrainPres"]
+RF_t <- model_metadata[which(model_metadata$model_type=="RF"),"Thresholdmean_minTrainPres"]
 
 bin_M <- function(x) {
-  ifelse(x <=  Maxent_t, 0,
+  ifelse(x <= Maxent_t, 0,
          ifelse(x >  Maxent_t, 1, NA)) }
 
 bin_BRT <- function(x) {
-  ifelse(x <=  BRT_t, 0,
+  ifelse(x <= BRT_t, 0,
          ifelse(x >  BRT_t, 1, NA)) }
 
 bin_RF <- function(x) {
-  ifelse(x <=  RF_t, 0,
+  ifelse(x <= RF_t, 0,
          ifelse(x >  RF_t, 1, NA)) }
 
 #stack and average the current maps, weighting by TSS
-BRT <- raster(BRT_currentp)
-Maxent <- raster(Maxent_currentp)
-RF <- raster(RF_currentp)
+BRT <- raster(model_metadata[which(model_metadata$model_type=="BRT"),"predict_current_fn"])
+Maxent <- raster(model_metadata[which(model_metadata$model_type=="Maxent"),"predict_current_fn"])
+RF <- raster(model_metadata[which(model_metadata$model_type=="RF"),"predict_current_fn"])
 
 #binarize
 Maxent_current_bin <- calc(Maxent, fun=bin_M)
@@ -276,9 +253,9 @@ current <- stack(BRT, Maxent, RF)
 current_wm <- weighted.mean(current, w=model_metadata$TSSpost) #weighted mean of the three current models, w/ TSS used to weight
 
 #stack and average the future maps, weighting by TSS
-BRT <- raster(BRT_futurep)
-Maxent <- raster(Maxent_futurep)
-RF <- raster(RF_futurep)
+BRT <- raster(model_metadata[which(model_metadata$model_type=="BRT"),"predict_future_fn"])
+Maxent <- raster(model_metadata[which(model_metadata$model_type=="Maxent"),"predict_future_fn"])
+RF <- raster(model_metadata[which(model_metadata$model_type=="RF"),"predict_future_fn"])
 
 #binarize
 Maxent_future_bin <- calc(Maxent, fun=bin_M)
@@ -289,7 +266,6 @@ future_bin_s <- calc(future_bin, sum)
 
 future <- stack(BRT, Maxent, RF)
 future_wm <- weighted.mean(future, w=model_metadata$TSSpost) #weighted mean of the three current models, w/ TSS used to weight
-
 
 Maxent_current_bin <- calc(Maxent, fun=bin_M)
 
