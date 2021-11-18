@@ -227,51 +227,52 @@ model_metadata <- unique(model_metadata) # git it down to one row as I have it w
 #####
 #binarize individual rasters, based on the minimum training presence threshold
 
+# load the current and future rasters
+BRT_current <- raster(model_metadata[which(model_metadata$model_type=="BRT"),"predict_current_fn"])
+Maxent_current <- raster(model_metadata[which(model_metadata$model_type=="Maxent"),"predict_current_fn"])
+RF_current <- raster(model_metadata[which(model_metadata$model_type=="RF"),"predict_current_fn"])
+
+BRT_future <- raster(model_metadata[which(model_metadata$model_type=="BRT"),"predict_future_fn"])
+Maxent_future <- raster(model_metadata[which(model_metadata$model_type=="Maxent"),"predict_future_fn"])
+RF_future <- raster(model_metadata[which(model_metadata$model_type=="RF"),"predict_future_fn"])
+
 #threshold values
 Maxent_t <- model_metadata[which(model_metadata$model_type=="Maxent"),"Thresholdmean_minTrainPres"] 
 BRT_t <- model_metadata[which(model_metadata$model_type=="BRT"),"Thresholdmean_minTrainPres"]
 RF_t <- model_metadata[which(model_metadata$model_type=="RF"),"Thresholdmean_minTrainPres"]
 
+# function to binerize the MaxEnt model
 bin_M <- function(x) {
   ifelse(x <= Maxent_t, 0,
          ifelse(x >  Maxent_t, 1, NA)) }
-
+# function to binerize the BRT model
 bin_BRT <- function(x) {
   ifelse(x <= BRT_t, 0,
          ifelse(x >  BRT_t, 1, NA)) }
-
+# function to binerize the RF model
 bin_RF <- function(x) {
   ifelse(x <= RF_t, 0,
          ifelse(x >  RF_t, 1, NA)) }
 
-#stack and average the current maps, weighting by TSS
-BRT_current <- raster(model_metadata[which(model_metadata$model_type=="BRT"),"predict_current_fn"])
-Maxent_current <- raster(model_metadata[which(model_metadata$model_type=="Maxent"),"predict_current_fn"])
-RF_current <- raster(model_metadata[which(model_metadata$model_type=="RF"),"predict_current_fn"])
-
-#binarize
+# binarize the current rasters
 Maxent_current_bin <- calc(Maxent_current, fun=bin_M)
 BRT_current_bin <- calc(BRT_current, fun=bin_BRT)
 RF_current_bin <- calc(RF_current, fun=bin_RF)
 current_bin <- stack(Maxent_current_bin, BRT_current_bin, RF_current_bin)
 current_bin_s <- calc(current_bin, sum)
 
+# stack and average the current maps, weighting by TSS
 current <- stack(BRT_current, Maxent_current, RF_current)
 current_wm <- weighted.mean(current, w=model_metadata$TSSpost) #weighted mean of the three current models, w/ TSS used to weight
 
-####
-#stack and average the future maps, weighting by TSS
-BRT_future <- raster(model_metadata[which(model_metadata$model_type=="BRT"),"predict_future_fn"])
-Maxent_future <- raster(model_metadata[which(model_metadata$model_type=="Maxent"),"predict_future_fn"])
-RF_future <- raster(model_metadata[which(model_metadata$model_type=="RF"),"predict_future_fn"])
-
-#binarize
+# binarize the future rasters
 Maxent_future_bin <- calc(Maxent_future, fun=bin_M)
 BRT_future_bin <- calc(BRT_future, fun=bin_BRT)
 RF_future_bin <- calc(RF_future, fun=bin_RF)
 future_bin <- stack(Maxent_future_bin, BRT_future_bin, RF_future_bin)
 future_bin_s <- calc(future_bin, sum)
 
+# stack and average the future maps, weighting by TSS
 future <- stack(BRT_future, Maxent_future, RF_future)
 future_wm <- weighted.mean(future, w=model_metadata$TSSpost) #weighted mean of the three current models, w/ TSS used to weight
 
