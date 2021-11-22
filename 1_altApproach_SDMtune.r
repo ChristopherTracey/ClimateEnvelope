@@ -149,13 +149,19 @@ for(i in 1:length(ModelMethods)){
   dbDisconnect(db_cem)
 
   # insert the variable importance into the database
-  # md_vi <- cbind("model_run_name"=model_run_name, "model_type"=ModelMethods[i], vi)
-  # for(h in 1:nrow(md_vi)){
-  #   db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
-  #   SQLquery <- paste("INSERT INTO ImpVar (", paste(names(md_vi), collapse = ',') ,") VALUES (",paste(sQuote(md_vi[h,]), collapse = ','),");", sep="") 
-  #   dbExecute(db_cem, SQLquery )
-  #   dbDisconnect(db_cem)
-  # }
+  md_vi <- data.frame(Variable=character(),
+                      Percent_contribution=double(),
+                      Permutation_importance=double(),
+                      sd=double(),
+                      stringsAsFactors=FALSE)
+  md_vi <- bind_rows(md_vi, vi)
+  md_vi <- cbind("model_run_name"=model_run_name, "model_type"=ModelMethods[i], md_vi)
+  for(h in 1:nrow(md_vi)){
+    db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
+    SQLquery <- paste("INSERT INTO ImpVar (", paste(names(md_vi), collapse = ',') ,") VALUES (",paste(sQuote(md_vi[h,]), collapse = ','),");", sep="") 
+    dbExecute(db_cem, SQLquery )
+    dbDisconnect(db_cem)
+  }
   
   # predict the model to the current env predictors
   cat("- predicting the model to the current env predictors\n")
@@ -206,72 +212,75 @@ for(i in 1:length(ModelMethods)){
   cat(paste("Finished with the ", ModelMethods[i], " model for ", unique(spData$SNAME),".\n", sep=""))
 }
 
-######################################
-#Build stacked ensemble model ########
+#######################################
+# Build stacked ensemble model ########
 #################################################################
 
+#
 # get model output names from metadata
 db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
 SQLquery <- paste("SELECT model_run_name, model_type, predict_current_fn, predict_future_fn, Thresholdmean_minTrainPres, Thresholdsd_minTrainPres, TSSpost FROM MODEL_RUNS WHERE model_run_name = ", sQuote(model_run_name)) 
 model_metadata <- dbGetQuery(db_cem, SQLquery)
 dbDisconnect(db_cem)
+model_metadata <- unique(model_metadata) # git it down to one row as I have it write out two rows for some reason..
 
-model_metadata <- unique(model_metadata)
-
+#####
 #binarize individual rasters, based on the minimum training presence threshold
+
+# load the current and future rasters
+BRT_current <- raster(model_metadata[which(model_metadata$model_type=="BRT"),"predict_current_fn"])
+Maxent_current <- raster(model_metadata[which(model_metadata$model_type=="Maxent"),"predict_current_fn"])
+RF_current <- raster(model_metadata[which(model_metadata$model_type=="RF"),"predict_current_fn"])
+
+BRT_future <- raster(model_metadata[which(model_metadata$model_type=="BRT"),"predict_future_fn"])
+Maxent_future <- raster(model_metadata[which(model_metadata$model_type=="Maxent"),"predict_future_fn"])
+RF_future <- raster(model_metadata[which(model_metadata$model_type=="RF"),"predict_future_fn"])
 
 #threshold values
 Maxent_t <- model_metadata[which(model_metadata$model_type=="Maxent"),"Thresholdmean_minTrainPres"] 
 BRT_t <- model_metadata[which(model_metadata$model_type=="BRT"),"Thresholdmean_minTrainPres"]
 RF_t <- model_metadata[which(model_metadata$model_type=="RF"),"Thresholdmean_minTrainPres"]
 
+# function to binerize the MaxEnt model
 bin_M <- function(x) {
   ifelse(x <= Maxent_t, 0,
          ifelse(x >  Maxent_t, 1, NA)) }
-
+# function to binerize the BRT model
 bin_BRT <- function(x) {
   ifelse(x <= BRT_t, 0,
          ifelse(x >  BRT_t, 1, NA)) }
-
+# function to binerize the RF model
 bin_RF <- function(x) {
   ifelse(x <= RF_t, 0,
          ifelse(x >  RF_t, 1, NA)) }
 
-#stack and average the current maps, weighting by TSS
-BRT <- raster(model_metadata[which(model_metadata$model_type=="BRT"),"predict_current_fn"])
-Maxent <- raster(model_metadata[which(model_metadata$model_type=="Maxent"),"predict_current_fn"])
-RF <- raster(model_metadata[which(model_metadata$model_type=="RF"),"predict_current_fn"])
-
-#binarize
-Maxent_current_bin <- calc(Maxent, fun=bin_M)
-BRT_current_bin <- calc(BRT, fun=bin_BRT)
-RF_current_bin <- calc(RF, fun=bin_RF)
+# binarize the current rasters
+Maxent_current_bin <- calc(Maxent_current, fun=bin_M)
+BRT_current_bin <- calc(BRT_current, fun=bin_BRT)
+RF_current_bin <- calc(RF_current, fun=bin_RF)
 current_bin <- stack(Maxent_current_bin, BRT_current_bin, RF_current_bin)
 current_bin_s <- calc(current_bin, sum)
 
-current <- stack(BRT, Maxent, RF)
+# stack and average the current maps, weighting by TSS
+current <- stack(BRT_current, Maxent_current, RF_current)
 current_wm <- weighted.mean(current, w=model_metadata$TSSpost) #weighted mean of the three current models, w/ TSS used to weight
 
-#stack and average the future maps, weighting by TSS
-BRT <- raster(model_metadata[which(model_metadata$model_type=="BRT"),"predict_future_fn"])
-Maxent <- raster(model_metadata[which(model_metadata$model_type=="Maxent"),"predict_future_fn"])
-RF <- raster(model_metadata[which(model_metadata$model_type=="RF"),"predict_future_fn"])
-
-#binarize
-Maxent_future_bin <- calc(Maxent, fun=bin_M)
-BRT_future_bin <- calc(BRT, fun=bin_BRT)
-RF_future_bin <- calc(RF, fun=bin_RF)
+# binarize the future rasters
+Maxent_future_bin <- calc(Maxent_future, fun=bin_M)
+BRT_future_bin <- calc(BRT_future, fun=bin_BRT)
+RF_future_bin <- calc(RF_future, fun=bin_RF)
 future_bin <- stack(Maxent_future_bin, BRT_future_bin, RF_future_bin)
 future_bin_s <- calc(future_bin, sum)
 
-future <- stack(BRT, Maxent, RF)
+# stack and average the future maps, weighting by TSS
+future <- stack(BRT_future, Maxent_future, RF_future)
 future_wm <- weighted.mean(future, w=model_metadata$TSSpost) #weighted mean of the three current models, w/ TSS used to weight
 
-Maxent_current_bin <- calc(Maxent, fun=bin_M)
+###Maxent_current_bin <- calc(Maxent, fun=bin_M)
 
 #re-binning the binary consensus model
 bin_fut <- function(x) {
-  ifelse(x <=  2, 0,
-         ifelse(x >  2, 1, NA)) }
+  ifelse(x <= 2, 0,
+         ifelse(x > 2, 1, NA)) }
 future_bin2_s <- calc(future_bin_s, fun=bin_fut)
-plot(future_bin2_s) #just the full consensus points
+plotPred(future_bin2_s) #just the full consensus points
