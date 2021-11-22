@@ -39,11 +39,12 @@ studyArea <- here::here("_data","other_spatial","modeling_data.gdb", "boundPAsta
 pathPredictorsCurrent <- here::here("_data","env_vars","ensemble_ssp245_2011_bioclim")
 pathPredictorsFuture <- here::here("_data","env_vars","ensemble_ssp245_2041_bioclim")
 # your name
+modeller = "Christopher Tracey"
 
 #model output path
-Model_outputpath <- here::here(paste("_data/","species","/",sp_code,"/output", sep=""))
+#Model_outputpath <- here::here(paste("_data/","species","/",sp_code,"/output", sep=""))
 
-modeller = "Anna Johnson"
+
 
 ## STEP 2: Run a Model ################################
 
