@@ -5,7 +5,7 @@
 #select whether you are running the ensembling within the same session as the individual modeling occurred, or whether are you doing the ensembles in a separate session and starting with a blank workspace
 
 # enter "start fresh" here if you need to select the species and the model run by hand
-runtype <- "No" #"start fresh" 
+runtype <- "start fresh" #"start fresh" 
 
 #if you are starting this section separately from running a set of models, then you can manually define your model_run_name here
 if (runtype=="start fresh") {
@@ -15,7 +15,12 @@ db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
 model_runs <- dbGetQuery(db_cem, paste("SELECT model_run_name FROM MODEL_RUNS WHERE sp_code = " , sQuote(sp_code), sep="") )
 model_runs <- model_runs[,1] #switching from a dataframe to a vector
 model_runs
-model_run_name <- model_runs[20] ######### manually select the model run name you want to use for ensembling HERE
+model_run_name <- model_runs[23] ######### manually select the model run name you want to use for ensembling HERE
+db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
+SQLquery <- paste("SELECT model_run_name, model_type, predict_current_fn, predict_future_fn, Thresholdmean_minTrainPres, Thresholdsd_minTrainPres, TSSpost FROM MODEL_RUNS WHERE model_run_name = ", sQuote(model_run_name)) 
+model_metadata <- dbGetQuery(db_cem, SQLquery)
+dbDisconnect(db_cem)
+model_metadata <- unique(model_metadata)
 }  else {  
 
 # get model output names from metadata
@@ -105,9 +110,12 @@ bin_fut2 <- function(x) {
          ifelse(x >  mean_threshold, 1, NA)) }
 
 future_m <- calc(future, fun=mean) #unweighted mean of three models
+current_m <- calc(current, fun=mean) #unweighted mean of three models
 
 future_bin3_s <- calc(future_m, fun=bin_fut2) #this is the thresholded version of the three models averaged, and then the threshold is set by the average. I think this is a thing you can do?
+current_bin3_s <- calc(current_m, fun=bin_fut2) #for the current model
 
+plot(current_bin3_s)
 plot(future_bin3_s)
 
 ##### Save selected ensemble model approach #####
@@ -121,4 +129,13 @@ output_model <- future_bin3_s #set which ensemble model you want to export (defa
 
 writeRaster(output_model, ensemble_path, overwrite=TRUE)
 
+# build CEM expand - contract - stable map
+
+future_bin3_s <- reclassify(future_bin3_s, c(-Inf, .25, 0, .25, 2, 2)) #reclassify the future to a 0,2 raster
+
+cem_cf <- stack(current_bin3_s, future_bin3_s)
+cem_cv_s <- calc(cem_cf, fun=sum)
+
+plot(cem_cv_s, legend = FALSE, col = rev(terrain.colors(4)))
+legend("topright", legend = c("Null", "Contracting", "Expanding", "Stable"), fill = rev(terrain.colors(4)))
 
