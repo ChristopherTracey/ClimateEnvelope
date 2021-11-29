@@ -34,7 +34,7 @@ nm_db_file <- here("_data", "databases", "CEMdata.sqlite")
 # species data 
 spData_path <- here::here("_data","other_spatial","modeling_data.gdb", "speciesdata")
 # project area, shapefile or gdb feature class
-studyArea <- here::here("_data","other_spatial","modeling_data.gdb", "boundPAstate")
+studyArea <- here::here("_data","other_spatial","modeling_data.gdb", "boundPAstate") #studyArea <- here::here("_data","other_spatial","modeling_data.gdb", "bound_pro")
 # predictor datasets
 pathPredictorsCurrent <- here::here("_data","env_vars","ensemble_ssp245_2011_bioclim")
 pathPredictorsFuture <- here::here("_data","env_vars","ensemble_ssp245_2041_bioclim")
@@ -44,6 +44,9 @@ modeller = "Christopher Tracey"
 #model output path
 #Model_outputpath <- here::here(paste("_data/","species","/",sp_code,"/output", sep=""))
 
+# set up projection parameter for use throughout script--albers
+ascproj <- CRS("+proj=laea +lat_0=45 +lon_0=-100 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +") #projection of AdaptWest asc layers
+#proj <- CRS("+proj=aea +lat_1=40 +lat_2=42 +lat_0=39 +lon_0=-78 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs") #projection for PA
 
 
 ## STEP 2: Run a Model ################################
