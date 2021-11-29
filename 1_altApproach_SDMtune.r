@@ -215,6 +215,13 @@ for(i in 1:length(ModelMethods)){
 #######################################
 # Build stacked ensemble model ########
 #################################################################
+#if you are starting this section separately from running a set of models, then you can manually define your model_run_name here
+sp_code <- "lupipere" #manually set focal species
+db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
+model_runs <- dbGetQuery(db_cem, paste("SELECT model_run_name FROM MODEL_RUNS WHERE sp_code = " , sQuote(sp_code), sep="") )
+model_runs <- model_runs[,1] #switching from a dataframe to a vector
+model_runs
+model_run_name <- model_runs[20] #manually select the model run name you want to use for ensembling
 
 #
 # get model output names from metadata
