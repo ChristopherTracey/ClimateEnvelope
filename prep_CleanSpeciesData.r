@@ -42,7 +42,7 @@ sp_GBIF <- NULL
 
 # get PA Biotics Data
 ptreps <- arc.open(paste(sp_PABiotics, "eo_ptreps", sep="/"))  
-ptreps <- arc.select(ptreps, c("SNAME","SCOMNAME","EO_ID","EST_RA","PREC_BCD","LASTOBS_YR"), where_clause=paste("SNAME IN (", paste(sQuote(splist$SNAME), collapse=", "), ")"))
+ptreps <- arc.select(ptreps, c("SNAME","SCOMNAME","EO_ID","EST_RA","PREC_BCD","LASTOBS","LASTOBS_YR"), where_clause=paste("SNAME IN (", paste(sQuote(splist$SNAME), collapse=", "), ")"))
 ptreps <- arc.data2sf(ptreps)
 ptreps$SUBNATION <- "PA"
 ptreps$source <- "PA Biotics"
@@ -50,12 +50,13 @@ ptreps$source <- "PA Biotics"
 setdiff(ptreps$SNAME, splist$SNAME)
 setdiff(splist$SNAME, ptreps$SNAME)
 
-ptreps <- st_transform(ptreps, ascproj) # reproject data
+#ptreps <- st_transform(ptreps, ascproj) # reproject data
 
 # get NS data
 NSdata <- arc.open(here::here("_data","occurrence",sp_NSbld))
-NSdata <- arc.select(NSdata, fields=c("SUBNATION","EO_ID","SNAME","SCOMNAME","LOBS_Y", "PA_SppList", "EST_REP_AC", "PREC_BCD"))
+NSdata <- arc.select(NSdata, fields=c("SUBNATION","EO_ID","SNAME","SCOMNAME","LASTOBS_D","LOBS_Y", "PA_SppList", "EST_REP_AC", "PREC_BCD"))
 NSdata <- arc.data2sf(NSdata)
+names(NSdata)[names(NSdata)=="LASTOBS_D"] <- "LASTOBS"
 names(NSdata)[names(NSdata)=="LOBS_Y"] <- "LASTOBS_YR"
 names(NSdata)[names(NSdata)=="EST_REP_AC"] <- "EST_RA"
 NSdata$source <- "NatureServe BLD"
@@ -124,23 +125,47 @@ NSdata$PA_SppList <- NULL
 
 # project the data into a common projections
 
-NSdataSinglepart = st_cast(NSdata, "POLYGON") # i don't know why casting this to polygon fixes the crqazy projection problem, but it does.
+NSdata = st_cast(NSdata, "POLYGON") # i don't know why casting this to polygon fixes the crqazy projection problem, but it does.
 
 NSdata <- st_transform(NSdata, st_crs(ptreps)) # reproject data to a common system
-st_write(NSdata, "NSdata.shp")
+st_write(NSdata, "NSdata.shp", delete_layer=TRUE)
 NSdata_centroid <- st_centroid(NSdata)
-st_write(NSdata_centroid, "NSdata_cen.shp")
+st_write(NSdata_centroid, "NSdata_cen.shp", delete_layer=TRUE)
 
 ####################################
 # join the layers together
 spData <- rbind(ptreps, NSdata_centroid)
-st_write(spData, "comdata.shp")
+
+spData <- merge(spData, splist, by="SNAME", all.x=TRUE)
 
 
+#######################################
 # do some data cleaning
-tapply(spData$LASTOBS_YR, spData$SUBNATION, summary)  
+tapply(spData$LASTOBS_YR, spData$SUBNATION, summary)# summary of last obs year by state
+
+# create summary of the original data
+spDataSummary <- as.data.frame(table(spData$SNAME))
+names(spDataSummary)[names(spDataSummary)=="Var1"] <- "SNAME"
+names(spDataSummary)[names(spDataSummary)=="Freq"] <- "EOcnt"
+# remove data beyond our cutoff year
+cutoffYear <- 1991
+spData <- spData[which(spData$LASTOBS_YR>=cutoffYear),]
+# add the data lost by the cutoffyear to the summary table
+tmp_spDataSummary <- as.data.frame(table(spData$SNAME))
+names(tmp_spDataSummary)[names(tmp_spDataSummary)=="Var1"] <- "SNAME"
+names(tmp_spDataSummary)[names(tmp_spDataSummary)=="Freq"] <- "EOcntPost1991"
+spDataSummary <- merge(spDataSummary, tmp_spDataSummary, by="SNAME", all.x=TRUE)
+rm(tmp_spDataSummary)
 
 
+#spDataSummary$diff <- spDataSummary$EOcnt - spDataSummary$EOcntPost1991
+
+
+# write a master copy of the data
+st_write(spData, "SpeciesDataMaster.shp", delete_layer=TRUE)
+
+#generate individual shapefiles for training
+looplist
 
 
 ########################################
