@@ -11,18 +11,26 @@ if (!requireNamespace("sf", quietly = TRUE)) install.packages("sf")
 require(sf)
 if (!requireNamespace("arcgisbinding", quietly = TRUE)) install.packages("arcgisbinding")
 require(arcgisbinding) 
+if (!requireNamespace("rinat", quietly = TRUE)) install.packages("rinat")
+require(rinat)
+if (!requireNamespace("plyr", quietly = TRUE)) install.packages("plyr")
+require(plyr)
+if (!requireNamespace("lubridate", quietly = TRUE)) install.packages("lubridate")
+require(lubridate)
+if (!requireNamespace("sp", quietly = TRUE)) install.packages("sp")
+require(sp)
 
 arc.check_product()
 
-here::i_am("Scripting/GBIF_Collector_Refugia.R")
+here::i_am("ClimateEnvelope/GBIF_Collector_Refugia.R")
 
-Spp <- read.csv(here("scripting", "SpeciesList_CC_Refugia_Spring2021.csv"))
+Spp <- read.csv(here("ClimateEnvelope","_data", "SpeciesList_CC_Refugia_Fall2021.csv"))
 splist <- Spp$SNAME
 
 # gets the  keys for each species name, based on GBIF
 keys <- sapply(splist, function(x) name_backbone(name=x)$speciesKey[1], USE.NAMES=FALSE)
 
-### add some code to put out the list of species not found in GBIF
+### add some code to output the list of species not found in GBIF
 a1 <- which(sapply(keys,is.null))
 missingGBIFsp <- splist[a1]
 missingGBIFsp
@@ -38,11 +46,11 @@ dat <- occ_search(
   limit=10000, # modify if needed, fewer will make testing go faster
   return='data', 
   hasCoordinate=TRUE,
-  geometry='POLYGON ((-81.3907145109999 43.022890238,-73.9087973769999 42.922956207,-74.7167285109999 37.083580272, -81.8560689919999 37.390003945, -81.3907145109999 43.022890238))', # simplified boundary of Pennsylvania.
-  year='1970,2021'
+  geometry='POLYGON ((-85.57988678	36.76856257,-83.88421901	46.21666915,-70.43187262	44.52394518, -73.90234397	35.29491096, -85.57988678	36.76856257))', # bounding box for full refugia modeling area
+  year='1991,2021'
 )
 
-dat <-  dat[dat!="no data found, try a different search"] # deletes the items from the list where no occurences were found. doesn't work for one species
+dat <-  dat[dat!="no data found, try a different search"] # deletes the items from the list where no occurrences were found. doesn't work for one species
 datdf <- lapply(dat, function(x) x[[3]])# selects the $data from each list element
 
 #make the columns all match across the dataframes
@@ -75,9 +83,12 @@ datdff <- lapply(datdf, '[', fields) #subset out just the focal columns
 
 datdff_df <- dplyr::bind_rows(datdff, .id = "column_label") #turns it into one big dataframe
 
+#keep only the "human observation" records to get rid of things like georeferenced older museum specimens
+datdff_df <- datdff_df[(datdff_df$basisOfRecord=="HUMAN_OBSERVATION"),]
 
-write.csv(datdff_df, file=paste("gbif", format(Sys.time(), "%Y%m%d"), "backup.csv"), sep="")
-##datdf <- read.csv("gbif 20191015 backup.csv", stringsAsFactors=FALSE) # to reload a saved search
+
+write.csv(datdff_df, file=paste("gbif", format(Sys.time(), "%Y%m%d"), ".csv", sep=""))
+##datdff_df <- read.csv("gbif20211129.csv", stringsAsFactors=FALSE) # to reload a saved search
 
 
 gbifdata <- datdff_df # just changing the name so it backs up
@@ -101,7 +112,7 @@ gbifdata <- gbifdata[c("SNAME","DataID","DataSource","Notes","LastObs","Longitud
 gbifdata <- gbifdata %>% drop_na(Longitude, Latitude)
 
 # Set cut-off date
-cutoffyear <- 1980
+cutoffyear <- 1991
 gbifdata$usedata <- ifelse(gbifdata$LastObs>=cutoffyear, "y", "n")
 
 # create a spatial layer
@@ -111,11 +122,124 @@ gbif_sf <- st_as_sf(gbifdata, coords=c("Longitude","Latitude"), crs="+proj=longl
 gbif_sf <- st_transform(gbif_sf, crs=proj) # reproject to match the Adaptwest layers
 
 fgdb_path <- file.path("C:/Users/AJohnson/Documents/ArcGIS/Projects/ClimateRefugia/Species"
-, "gbif_data.gdb") #create and write to a new file geodatabase
+, "GBIF_data.gdb") #create and write to a new file geodatabase 
 
 #this creates a points output
 arc.write(path=fgdb_path, data=gbif_sf, overwrite=TRUE, shape_info=list(type='Point')) # write a feature class into the geodatabase
 
-#this creates a polygon output
-gbif_100mbuffer_sf <- st_buffer(gbif_sf, dist=100) # buffer by 100m
-arc.write(path=fgdb_path, data=gbif_100mbuffer_sf, overwrite=TRUE) # write a feature class into the geodatabase
+#this creates a polygon output if you want it
+#gbif_100mbuffer_sf <- st_buffer(gbif_sf, dist=100) # buffer by 100m
+#arc.write(path=fgdb_path, data=gbif_100mbuffer_sf, overwrite=TRUE) # write a feature class into the geodatabase
+
+#### pull in iNat data now for the same species list ####
+
+splist
+
+a <- list()
+k <- NULL
+for(x in 1:length(splist)){
+  #get metadata on the number of occurrences
+  print(paste("getting metadata from iNaturalist for ",splist[x],".", sep="") )
+  try(k <- get_inat_obs(taxon_name=splist[x], bounds=c(36.76856257, -85.57988678, 44.52394518, -70.43187262) , geo=TRUE, meta=TRUE) ) # this step first queries iNat to see if there are any records present, if there are it actually downloads them.
+  Sys.sleep(10) # this is too throttle our requests so we don't overload their servers
+  if(is.list(k)){
+    print(paste("There are ", k$meta$found, " records on iNaturalist", sep=""))
+    if(k$meta$found>0){
+      a[[x]] <- get_inat_obs(taxon_name=splist[x], bounds=c(36.76856257, -85.57988678, 44.52394518, -70.43187262) , geo=TRUE, maxresults = k$meta$found) 
+      k <- NULL
+    } else {}
+  } else {
+    print("No records found")
+  }
+}
+
+# convert to a data frame
+inatrecs <- ldply(a)
+
+# make a backup
+write.csv(inatrecs, "inatrecsq2_2021.csv", row.names = FALSE)
+
+# how many species did we get records for?
+unique(inatrecs$scientific_name)
+table(inatrecs$scientific_name,inatrecs$captive_cultivated)
+
+# ones that match the species list
+splist <- as.data.frame(splist)
+names(splist) <- "SNAME"
+splist$match <- "yes"
+
+speciesmatch <- as.data.frame(unique(inatrecs$scientific_name)) 
+names(speciesmatch) <- "SNAME"
+speciesmatch <- merge(speciesmatch, splist, all.x=TRUE)
+speciesmatch$SNAME <- as.character(speciesmatch$SNAME)
+
+print("The following species do not match the original SGNC list:")
+unmatching <- speciesmatch[which(is.na(speciesmatch$match)),]$SNAME #some of these can/should probably be renamed to attribute to the species...
+#write.csv(as.data.frame(unmatching), file="unmatched_iNat_spp.csv")
+
+# remove captive cultivated records
+inatrecs <- inatrecs[which(inatrecs$captive_cultivated!="true"),]
+
+# remove obscured records
+inatrecs1 <- inatrecs[which(inatrecs$geoprivacy!="obscured"),]
+inatrecs1 <- inatrecs1[which(inatrecs1$taxon_geoprivacy!="open"|inatrecs1$taxon_geoprivacy!=""),]
+inatrecs1 <- inatrecs1[which(inatrecs1$coordinates_obscured!="true"),]
+
+# positional accuracy
+summary(inatrecs1$positional_accuracy)
+inatrecs1 <- inatrecs1[which(inatrecs1$positional_accuracy<=150),]
+
+# not research grade
+#inatgraph$resgrade <- ifelse(inatgraph$quality_grade!="research", "remove", "keep")
+inatrecs1 <- inatrecs1[which(inatrecs1$quality_grade=="research"),]
+
+#unique(inatrecs1$scientific_name)
+
+# sort just to make it cleaner
+
+inatrecs1 <- inatrecs1[order(inatrecs1$scientific_name),]
+
+# add additional fields 
+inatrecs1$DataSource <- "iNaturalist"
+inatrecs1$OccProb <- "k"
+names(inatrecs1)[names(inatrecs1)=='scientific_name'] <- 'SNAME'
+names(inatrecs1)[names(inatrecs1)=='common_name'] <- 'SCOMNAME'
+names(inatrecs1)[names(inatrecs1)=='url'] <- 'DataID'
+
+inatrecs1$LastObs <- year(parse_date_time(inatrecs1$observed_on, orders=c("ymd","mdy")))
+
+inatrecs1 <- inatrecs1[which(!is.na(inatrecs1$LastObs)),] # deletes one without a year
+
+# drops the unneeded columns. 
+inatrecs1 <- inatrecs1[c("SNAME","DataID","longitude","latitude","LastObs","DataSource")]
+
+#look at how many records occur under unmatched names, and recode the ones that make sense
+
+unmatched <- inatrecs1[(inatrecs1$SNAME %in% unmatching),]
+unmatched$SNAME <- as.factor(unmatched$SNAME)
+unmatched %>% group_by(SNAME) %>% tally() #figure out which remaining spp names that don't match have enough individuals that they should be renamed to fit
+
+#rename as appropriate
+inatrecs1[which(inatrecs1$SNAME=="Abies balsamea phanerolepis"),]$SNAME <- "Abies balsamea"
+inatrecs1[which(inatrecs1$SNAME=="Morella pensylvanica"),]$SNAME <- "Myrica pensylvanica"
+inatrecs1[which(inatrecs1$SNAME=="Actaea rubra neglecta"),]$SNAME <- "Actaea rubra"
+inatrecs1[which(inatrecs1$SNAME=="Actaea rubra rubra"),]$SNAME <- "Actaea rubra"
+inatrecs1[which(inatrecs1$SNAME=="Cerastium velutinum velutinum"),]$SNAME <- "Cerastium velutinum var. velutinum"
+inatrecs1[which(inatrecs1$SNAME=="Deschampsia cespitosa cespitosa"),]$SNAME <- "Deschampsia cespitosa"
+inatrecs1[which(inatrecs1$SNAME=="Iris verna smalliana"),]$SNAME <- "Iris verna"
+inatrecs1[which(inatrecs1$SNAME=="Patis racemosa"),]$SNAME <- "Piptatherum racemosum"
+inatrecs1[which(inatrecs1$SNAME=="Platanthera blephariglottis blephariglottis"),]$SNAME <- "Platanthera blephariglottis"
+inatrecs1[which(inatrecs1$SNAME=="Sarracenia purpurea purpurea"),]$SNAME <- "Sarracenia purpurea"
+inatrecs1[which(inatrecs1$SNAME=="Sibbaldiopsis tridentata"),]$SNAME <- "Potentilla tridentata"
+
+#create spatial layer from long/lats
+inatrecs1_sf <- st_as_sf(inatrecs1, coords=c("longitude","latitude"), crs="+proj=longlat +datum=WGS84 +no_defs +ellps=WGS84 +towgs84=0,0,0")
+
+proj <- CRS("+proj=lcc +lon_0=-95 +lat_1=49 +lat_2=77 +lat_0=0")
+inatrecs1_sf <- st_transform(inatrecs1_sf, crs=proj) # reproject to match the Adaptwest layers
+
+fgdb_path <- file.path("C:/Users/AJohnson/Documents/ArcGIS/Projects/ClimateRefugia/Species"
+                       , "iNat_data.gdb") #create and write to a new file geodatabase 
+
+#this creates a points output
+arc.write(path=fgdb_path, data=inatrecs1_sf, overwrite=TRUE, shape_info=list(type='Point'))
