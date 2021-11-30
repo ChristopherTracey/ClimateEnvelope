@@ -37,12 +37,12 @@ dbDisconnect(db_cem)
 # get data
 sp_PABiotics <- "W:/Heritage/Heritage_Data/Biotics_datasets.gdb" 
 sp_NSbld <- "PA_CC_Refugia_EO_Polys_112021.shp"
-sp_iNat <- NULL
-sp_GBIF <- NULL  
+sp_iNat <- "iNat_data_clip.shp"
+sp_GBIF <- "GBIF_data_clip.shp"  
 
 # get PA Biotics Data
 ptreps <- arc.open(paste(sp_PABiotics, "eo_ptreps", sep="/"))  
-ptreps <- arc.select(ptreps, c("SNAME","SCOMNAME","EO_ID","EST_RA","PREC_BCD","LASTOBS","LASTOBS_YR"), where_clause=paste("SNAME IN (", paste(sQuote(splist$SNAME), collapse=", "), ")"))
+ptreps <- arc.select(ptreps, c("SNAME","EO_ID","EST_RA","PREC_BCD","LASTOBS_YR"), where_clause=paste("SNAME IN (", paste(sQuote(splist$SNAME), collapse=", "), ")"))
 ptreps <- arc.data2sf(ptreps)
 ptreps$SUBNATION <- "PA"
 ptreps$source <- "PA Biotics"
@@ -54,9 +54,8 @@ setdiff(splist$SNAME, ptreps$SNAME)
 
 # get NS data
 NSdata <- arc.open(here::here("_data","occurrence",sp_NSbld))
-NSdata <- arc.select(NSdata, fields=c("SUBNATION","EO_ID","SNAME","SCOMNAME","LASTOBS_D","LOBS_Y", "PA_SppList", "EST_REP_AC", "PREC_BCD"))
+NSdata <- arc.select(NSdata, fields=c("SUBNATION","EO_ID","SNAME","LOBS_Y", "PA_SppList", "EST_REP_AC", "PREC_BCD"))
 NSdata <- arc.data2sf(NSdata)
-names(NSdata)[names(NSdata)=="LASTOBS_D"] <- "LASTOBS"
 names(NSdata)[names(NSdata)=="LOBS_Y"] <- "LASTOBS_YR"
 names(NSdata)[names(NSdata)=="EST_REP_AC"] <- "EST_RA"
 NSdata$source <- "NatureServe BLD"
@@ -126,15 +125,63 @@ NSdata$PA_SppList <- NULL
 # project the data into a common projections
 
 NSdata = st_cast(NSdata, "POLYGON") # i don't know why casting this to polygon fixes the crqazy projection problem, but it does.
-
+st_write(NSdata, "NSdata.shp", delete_layer=TRUE)
 NSdata <- st_transform(NSdata, st_crs(ptreps)) # reproject data to a common system
 st_write(NSdata, "NSdata.shp", delete_layer=TRUE)
-NSdata_centroid <- st_centroid(NSdata)
-st_write(NSdata_centroid, "NSdata_cen.shp", delete_layer=TRUE)
+
+
+#NSdata_centroid <- st_centroid(NSdata)
+NSdata_point <- st_point_on_surface(NSdata)
+st_write(NSdata_point, "NSdata_cen.shp", delete_layer=TRUE)
+
+
+#####################################
+# get iNat data together
+
+inat <- arc.open(here::here("_data","occurrence",sp_iNat))  
+inat <- arc.select(inat)
+inat <- arc.data2sf(inat)
+inat$SUBNATION <- ""
+inat$EST_RA <- ""
+inat$PREC_BCD <- ""
+names(inat)[names(inat)=="LastObs"] <- "LASTOBS_YR"
+names(inat)[names(inat)=="DataSource"] <- "source"
+names(inat)[names(inat)=="DataID"] <- "EO_ID"
+inat$EO_ID <- str_replace(inat$EO_ID, "https://www.inaturalist.org/observations/", "")
+inat$FID <- NULL
+
+setdiff(inat$SNAME, splist$SNAME)
+setdiff(splist$SNAME, inat$SNAME)
+
+inatDataSummary <- as.data.frame(table(inat$SNAME))
+names(inatDataSummary)[names(inatDataSummary)=="Var1"] <- "SNAME"
+names(inatDataSummary)[names(inatDataSummary)=="Freq"] <- "Record_inat"
+
+#####################################
+# get GBIF data together
+
+gbif <- arc.open(here::here("_data","occurrence",sp_GBIF))  
+gbif <- arc.select(gbif)
+gbif <- arc.data2sf(gbif)
+gbif$SUBNATION <- ""
+gbif$EST_RA <- ""
+gbif$PREC_BCD <- ""
+names(gbif)[names(gbif)=="LastObs"] <- "LASTOBS_YR"
+names(gbif)[names(gbif)=="DataSource"] <- "source"
+names(gbif)[names(gbif)=="DataID"] <- "EO_ID"
+gbif$FID <- NULL
+
+setdiff(gbif$SNAME, splist$SNAME)
+setdiff(splist$SNAME, gbif$SNAME)
+
+# create summary of the gbif data
+gbifDataSummary <- as.data.frame(table(gbif$SNAME))
+names(gbifDataSummary)[names(gbifDataSummary)=="Var1"] <- "SNAME"
+names(gbifDataSummary)[names(gbifDataSummary)=="Freq"] <- "Record_gbif"
 
 ####################################
 # join the layers together
-spData <- rbind(ptreps, NSdata_centroid)
+spData <- rbind(ptreps, NSdata_point)
 
 spData <- merge(spData, splist, by="SNAME", all.x=TRUE)
 
@@ -157,6 +204,9 @@ names(tmp_spDataSummary)[names(tmp_spDataSummary)=="Freq"] <- "EOcntPost1991"
 spDataSummary <- merge(spDataSummary, tmp_spDataSummary, by="SNAME", all.x=TRUE)
 rm(tmp_spDataSummary)
 
+# add inat and gbif summary
+spDataSummary <- merge(spDataSummary, inatDataSummary, by="SNAME", all.x=TRUE)
+spDataSummary <- merge(spDataSummary, gbifDataSummary, by="SNAME", all.x=TRUE)
 
 #spDataSummary$diff <- spDataSummary$EOcnt - spDataSummary$EOcntPost1991
 
