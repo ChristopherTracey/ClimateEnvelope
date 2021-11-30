@@ -1,11 +1,7 @@
 # install and/or load necessary packages and libraries
-require(raster)
-require(rgdal)
 require(sf)
 require(tidyverse)
-require(fasterize)
 require(here)
-require(virtualspecies)
 library(arcgisbinding)
 library(RSQLite)
 arc.check_product()
@@ -153,6 +149,8 @@ inat$FID <- NULL
 setdiff(inat$SNAME, splist$SNAME)
 setdiff(splist$SNAME, inat$SNAME)
 
+inat <- st_transform(inat, st_crs(ptreps))
+
 inatDataSummary <- as.data.frame(table(inat$SNAME))
 names(inatDataSummary)[names(inatDataSummary)=="Var1"] <- "SNAME"
 names(inatDataSummary)[names(inatDataSummary)=="Freq"] <- "Record_inat"
@@ -170,6 +168,11 @@ names(gbif)[names(gbif)=="LastObs"] <- "LASTOBS_YR"
 names(gbif)[names(gbif)=="DataSource"] <- "source"
 names(gbif)[names(gbif)=="DataID"] <- "EO_ID"
 gbif$FID <- NULL
+gbif$Notes <- NULL
+gbif$usedata <- NULL
+gbif$coordinate <- NULL
+
+gbif <- st_transform(gbif, st_crs(ptreps))
 
 setdiff(gbif$SNAME, splist$SNAME)
 setdiff(splist$SNAME, gbif$SNAME)
@@ -180,8 +183,8 @@ names(gbifDataSummary)[names(gbifDataSummary)=="Var1"] <- "SNAME"
 names(gbifDataSummary)[names(gbifDataSummary)=="Freq"] <- "Record_gbif"
 
 ####################################
-# join the layers together
-spData <- rbind(ptreps, NSdata_point)
+# join the EO layers together
+spData <- rbind(ptreps, NSdata_point, gbif, inat)
 
 spData <- merge(spData, splist, by="SNAME", all.x=TRUE)
 
@@ -191,37 +194,94 @@ spData <- merge(spData, splist, by="SNAME", all.x=TRUE)
 tapply(spData$LASTOBS_YR, spData$SUBNATION, summary)# summary of last obs year by state
 
 # create summary of the original data
-spDataSummary <- as.data.frame(table(spData$SNAME))
-names(spDataSummary)[names(spDataSummary)=="Var1"] <- "SNAME"
-names(spDataSummary)[names(spDataSummary)=="Freq"] <- "EOcnt"
+spDataSummary <- as.data.frame.matrix(table(spData$SNAME, spData$source))
+spDataSummary <- data.frame(SNAME=row.names(spDataSummary), spDataSummary)
+rownames(spDataSummary) <- NULL
+names(spDataSummary)[names(spDataSummary)=="NatureServe.BLD"] <- "NatureServeBLD"
+names(spDataSummary)[names(spDataSummary)=="PA.Biotics"] <- "PABiotics"
 # remove data beyond our cutoff year
 cutoffYear <- 1991
 spData <- spData[which(spData$LASTOBS_YR>=cutoffYear),]
 # add the data lost by the cutoffyear to the summary table
-tmp_spDataSummary <- as.data.frame(table(spData$SNAME))
-names(tmp_spDataSummary)[names(tmp_spDataSummary)=="Var1"] <- "SNAME"
-names(tmp_spDataSummary)[names(tmp_spDataSummary)=="Freq"] <- "EOcntPost1991"
+tmp_spDataSummary <- as.data.frame.matrix(table(spData$SNAME, spData$source))
+tmp_spDataSummary<- data.frame(SNAME=row.names(tmp_spDataSummary), tmp_spDataSummary)
+rownames(tmp_spDataSummary) <- NULL
+tmp_spDataSummary$GBIF <- NULL
+tmp_spDataSummary$iNaturalist <- NULL
+names(tmp_spDataSummary)[names(tmp_spDataSummary)=="NatureServe.BLD"] <- "NatureServeBLD_1991"
+names(tmp_spDataSummary)[names(tmp_spDataSummary)=="PA.Biotics"] <- "PABiotics1991"
 spDataSummary <- merge(spDataSummary, tmp_spDataSummary, by="SNAME", all.x=TRUE)
 rm(tmp_spDataSummary)
 
-# add inat and gbif summary
-spDataSummary <- merge(spDataSummary, inatDataSummary, by="SNAME", all.x=TRUE)
-spDataSummary <- merge(spDataSummary, gbifDataSummary, by="SNAME", all.x=TRUE)
-
-#spDataSummary$diff <- spDataSummary$EOcnt - spDataSummary$EOcntPost1991
-
+spDataSummary$total1991 <- spDataSummary$GBIF + spDataSummary$iNaturalist + spDataSummary$NatureServeBLD_1991 + spDataSummary$PABiotics1991
 
 # write a master copy of the data
 st_write(spData, "SpeciesDataMaster.shp", delete_layer=TRUE)
 
-#generate individual shapefiles for training
-looplist
+#generate individual maps for training
+looplist <- unique(spData$cutecode)
+
+############
+StateBnd <- arc.open(here::here("_data","other_spatial","RefugiaModelingBoundary.shp"))  
+StateBnd <- arc.select(StateBnd)
+StateBnd <- arc.data2sf(StateBnd)
+StateBnd <- st_transform(StateBnd, st_crs(ptreps))
+
+######################
+# BONAP
+
+bonap <- read.csv("W:/Heritage/Heritage_Projects/1495_PlantConservationPlan/BONAP/bonap_data.csv", stringsAsFactors=FALSE)
+
+bonap1 <- pivot_longer(bonap, cols=10:1940)
+bonap1$name <- str_replace(bonap1$name, "_", " ") 
+bonap1$name <- str_replace(bonap1$name, " var ", " var. ")
+bonap1$name <- str_replace(bonap1$name, " ssp ", " ssp. ") 
+
+bonap2 <- bonap1[which(bonap1$name %in% splist$SNAME),]
+bonap2 <- bonap2[which(bonap2$STATEFP %in% c(10,11,24,34,36,39,42,51,54)),]
+
+counties <- arc.open(here::here("_data","other_spatial","studyArea_counties.shp"))  
+counties <- arc.select(counties)
+counties <- arc.data2sf(counties)
+counties <- st_transform(counties, st_crs(ptreps))
+
+bonap2$FIPS <- paste0(str_pad(bonap2$STATEFP,2,side="left", pad="0"), str_pad(bonap2$COUNTYFP,3,side="left", pad="0"))
+bonap2 <- merge(bonap2, splist[c("SNAME","cutecode")], by.y="SNAME", by.x="name", all.x=TRUE)
+bonap2 <- bonap2[which(bonap2$value=="PNR"|bonap2$value=="PR"|bonap2$value=="EXT"),]
 
 
-########################################
-# get the study area data ################################################################################################
-studyArea <- arc.open(studyArea)
-studyArea <- arc.select(studyArea)
-studyArea <- arc.data2sf(studyArea)
+#######################
+
+spData$source <- ordered(spData$source, levels=c("PA Biotics","NatureServe BLD","GBIF","iNaturalist"))
+
+for(i in 1:20){ # length(looplist)
+  # subset the data frame for the species
+  spData_sub <- spData[which(spData$cutecode==looplist[i]),]
+  # get bonap data
+  bonap_sub <- bonap2[which(bonap2$cutecode==looplist[i]),]
+  bonap_sub <- merge(counties, bonap_sub, by.x="COUNTY_KEY", by.y="FIPS")
+    
+  # make the map
+  p <- ggplot() +
+    geom_sf(data=bonap_sub, aes(), colour=NA, fill="gray") +
+    geom_sf(data=StateBnd, aes(), colour="black", fill=NA) +
+    geom_sf(data=spData_sub, mapping=aes(color=source), alpha=0.9) + # +
+    scale_color_manual(
+      breaks=c("PA Biotics","NatureServe BLD","GBIF","iNaturalist"), 
+      values=c("PA Biotics"="#2471a3", "NatureServe BLD"="#16a085", "GBIF"="#f39c12", "iNaturalist"="#b03a2e"),
+      labels=c("PA Biotics","NatureServe BLD","GBIF","iNaturalist"), drop=FALSE, na.value="white") + #
+    labs(
+      title=unique(spData_sub$SNAME)
+    ) +
+    theme_void() +
+    theme(legend.position=c(0.1,0.85)) +
+    theme(legend.title=element_blank()) +
+    theme(legend.text=element_text(size=10)) +
+    theme(axis.text=element_blank(), axis.title=element_text(size=15)) 
+   
+    ggsave(filename=paste(here::here("_data","other_spatial","speciesmaps"),"/","spmap_",looplist[i],".png",sep=""), plot=p, scale=1, dpi=220)
+}
+
+
 
 

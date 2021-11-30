@@ -24,7 +24,6 @@ options(useFancyQuotes=FALSE) # needed to make sure SQL queries work as well as 
 source(here::here("helperFunctions.r"))
 
 ## STEP 1: Variables and Such ################################
-
 # species code (from lkpSpecies in modelling database. This will be the new folder name containing inputs/outputs)
 sp_code <- "lupipere" # Lupinus perennis
 # model methods
