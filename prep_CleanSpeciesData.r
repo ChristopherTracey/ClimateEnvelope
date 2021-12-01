@@ -220,6 +220,7 @@ st_write(spData, "SpeciesDataMaster.shp", delete_layer=TRUE)
 
 #generate individual maps for training
 looplist <- unique(spData$cutecode)
+looplist <- looplist[!is.na(looplist)]
 
 ############
 StateBnd <- arc.open(here::here("_data","other_spatial","RefugiaModelingBoundary.shp"))  
@@ -254,7 +255,7 @@ bonap2 <- bonap2[which(bonap2$value=="PNR"|bonap2$value=="PR"|bonap2$value=="EXT
 
 spData$source <- ordered(spData$source, levels=c("PA Biotics","NatureServe BLD","GBIF","iNaturalist"))
 
-for(i in 1:20){ # length(looplist)
+for(i in 1:length(looplist)){ # 
   # subset the data frame for the species
   spData_sub <- spData[which(spData$cutecode==looplist[i]),]
   # get bonap data
@@ -279,7 +280,7 @@ for(i in 1:20){ # length(looplist)
     theme(legend.text=element_text(size=10)) +
     theme(axis.text=element_blank(), axis.title=element_text(size=15)) 
    
-    ggsave(filename=paste(here::here("_data","other_spatial","speciesmaps"),"/","spmap_",looplist[i],".png",sep=""), plot=p, scale=1, dpi=220)
+    ggsave(filename=paste(here::here("_data","other_spatial","speciesmaps"),"/","spmap_",looplist[i],".png",sep=""), plot=p, width=14, height=10, units="cm", scale=1, dpi=300)
 }
 
 
