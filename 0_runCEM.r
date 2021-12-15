@@ -16,6 +16,7 @@ library(reshape2)
 library(raster)
 library(remotes)
 library(dplyr)
+library(lubridate)
 # library(dismo)
 #library(sdm)
 #library(rasterVis)
@@ -36,6 +37,7 @@ spData_path <- here::here("_data","other_spatial","modeling_data.gdb", "speciesd
 # project area, shapefile or gdb feature class
 studyArea <- here::here("_data","other_spatial","modeling_data.gdb", "boundPAstate")
 # predictor datasets
+soildata <- 
 pathPredictorsCurrent <- here::here("_data","env_vars","ensemble_ssp245_2011_bioclim")
 pathPredictorsFuture <- here::here("_data","env_vars","ensemble_ssp245_2041_bioclim")
 # your name
