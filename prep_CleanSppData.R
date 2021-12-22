@@ -18,6 +18,8 @@ NY_plots2 <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/SppSpatialData/NY_We
 WV_Marshallia <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/SppSpatialData/WV_Marshallia_centroid.shp"
 WV_plots <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/SppSpatialData/WV_Species_in_Plots_XYTableToPoint.shp"
 PA_plots <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/SppSpatialData/PA_Species_in_plots.shp"
+VA_plots17UTM <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/SppSpatialData/KP_PANHP_Modelspeciesplots_UTM17N_XYTableToPoint.shp"
+VA_plots18UTM <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/SppSpatialData/KP_PANHP_Modelspeciesplots_UTM18N_XYTableToPoint.shp"
 
 #reformat each sf so they can be joined into a single dataset for modeling
 
@@ -158,15 +160,50 @@ names(PA_plots) <- SpNames
 
 PA_plots <- st_transform(PA_plots, crs=CRS_Code)
 
+####### VA_plots 17UTM #########
+VA_plots1 <- arc.open(VA_plots17UTM)
+VA_plots1 <- arc.select(VA_plots1)
+VA_plots1 <- arc.data2sf(VA_plots1)
+
+VA_plots1$usedata <- "Y"
+VA_plots1$datasource <- "VA plot data, UTM17N"
+
+VA_plots1 <- right_join(VA_plots1, ELCODEs)
+VA_plots1 <- VA_plots1 %>% dplyr::select(ELCODE, SNAME, Survey_Dat, ecgName, datasource, usedata)
+names(VA_plots1) <- SpNames
+
+VA_plots1$YEAR <- year(VA_plots1$YEAR)
+
+VA_plots1 <- st_transform(VA_plots1, crs=CRS_Code)
+
+####### VA_plots 18UTM #########
+VA_plots2 <- arc.open(VA_plots18UTM)
+VA_plots2 <- arc.select(VA_plots2)
+VA_plots2 <- arc.data2sf(VA_plots2)
+
+VA_plots2$usedata <- "Y"
+VA_plots2$datasource <- "VA plot data, UTM18N"
+
+VA_plots2 <- right_join(VA_plots2, ELCODEs)
+VA_plots2 <- VA_plots2 %>% dplyr::select(ELCODE, SNAME, Survey_Dat, ecgName, datasource, usedata)
+names(VA_plots2) <- SpNames
+
+VA_plots2$YEAR <- year(VA_plots2$YEAR)
+
+VA_plots2 <- st_transform(VA_plots2, crs=CRS_Code)
+
 #############################
 #### Bind em all together ###
 #############################
 
-Sp_DataList <- list(selected_pointreps, GBIF_data, iNat_data, NatureServe_data, NY_plots1, NY_plots2, WV_Marshallia, WV_plots, PA_plots)
+Sp_DataList <- list(selected_pointreps, GBIF_data, iNat_data, NatureServe_data, NY_plots1, NY_plots2, WV_Marshallia, WV_plots, PA_plots, VA_plots1, VA_plots2)
 
 Sp_Points <- bind_rows(Sp_DataList)
 Sp_Points %>% drop_na(geom)
 
+#this writes the file out to your working directory
 st_write(Sp_Points, dsn = "Sp_Points.shp", layer = "Sp_Points.shp", driver = "ESRI Shapefile", append=FALSE)
 
-ggplot() + geom_sf(data=Sp_Points, aes(color=DATASOURCE))
+
+
+
