@@ -21,7 +21,8 @@ ascproj <- CRS("+proj=laea +lat_0=45 +lon_0=-100 +x_0=4321000 +y_0=3210000 +ellp
 #proj <- CRS("+proj=aea +lat_1=40 +lat_2=42 +lat_0=39 +lon_0=-78 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs") #projection for PA
 
 # path to the shape to use for clipping--a shapefile in the same projection as rasters
-studyArea <- here::here("_data","other_spatial","modeling_data.gdb", "bound_pro")
+studyArea <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/EnvironmentalData_FullExtent/Refugia Modeling Boundary/Refugia Modeling Boundary.shp"
+
 
 # get the basemap data ################################################################################################
 studyArea <- arc.open(studyArea)
@@ -35,10 +36,13 @@ clpextent<- st_bbox(studyArea)
 ###### Clip a set of .tif rasters #####
 #######################################
 
-pathToTifs <- "E:/Refugia/climateData/ensemble_ssp245_2041_bioclim"
+pathToTifs <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/EnvironmentalData_FullExtent/NA_ENSEMBLE_rcp45_2050s_Bioclim_ASCII"
+#"W:/Heritage/Heritage_Projects/1280_CC_Refugia/EnvironmentalData_FullExtent/NA_NORM_8110_Bioclim_ASCII"
+#W:/Heritage/Heritage_Projects/1280_CC_Refugia/EnvironmentalData_FullExtent/NA_ENSEMBLE_rcp45_2050s_Bioclim_ASCII/
+#W:/Heritage/Heritage_Projects/1280_CC_Refugia/EnvironmentalData_FullExtent/NA_ENSEMBLE_rcp85_2050s_Bioclim_ASCII/
 
 # the path to write out the clipped rasters to
-pathToClipped <-  here::here("_data","env_vars",basename(pathToTifs))
+pathToClipped <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/EnvironmentalData_FullExtent/NA_ENSEMBLE_rcp85_2050s_Bioclim_ASCII/NewVars_masked"
 ifelse(!dir.exists(pathToClipped), dir.create(pathToClipped), FALSE)
 
 # get a list of the grids, if asc already
@@ -67,38 +71,40 @@ for (i in 1:length(gridlist)){
   a <- crop(ras, clpextent, filename=fn, format="GTiff", overwrite=TRUE)
 }
 
+predictors_Future <- stack(outfiles) #swapped this out manually to do the three sets of predictor variables
 
-# rename files
-srcString <- str_replace(basename(pathToTifs), "bioclim", "")
+writeRaster(predictors_Future, names(predictors_Future), bylayer=TRUE, format="GTiff")
 
-fromfiles <- list.files(pathToClipped, pattern=srcString)
-tofiles <- str_replace(fromfiles, srcString, "")
-
-file.rename(file.path(pathToClipped, fromfiles), file.path(pathToClipped, tofiles))
-
-# tack on the full paths and name them
-cliplist <- as.list(paste(pathToClipped, tofiles, sep="/")) 
-nm <- substr(tofiles, 1, nchar(tofiles) - 4)
-names(cliplist) <- nm
 
 #stack raster layers and then examine for correlated layers
-predictors_Current <- stack(cliplist) #Reads in .asc files as a raster stack
+pathPredictorsCurrent <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/EnvironmentalData_FullExtent/NA_NORM_8110_Bioclim_ASCII/NewVars_masked"
+pathPredictorsFuture4.5 <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/EnvironmentalData_FullExtent/NA_ENSEMBLE_rcp45_2050s_Bioclim_ASCII/NewVars_masked"
+pathPredictorsFuture8.5 <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/EnvironmentalData_FullExtent/NA_ENSEMBLE_rcp85_2050s_Bioclim_ASCII/NewVars_masked"
+
+# write file names into database here for the variables #
+
+
+predictors_Current <- stack(list.files(pathPredictorsCurrent, pattern = 'tif$', full.names=TRUE )) #Reads in .tif files as a raster stack
 
 ###########################################################
-# check for correlated variable groups and write to the database
+# check for correlated variable groups and write to the database. This only needs to be done for the current climate variables
 corr <- removeCollinearity(predictors_Current, plot=TRUE, multicollinearity.cutoff=0.8, select.variables=FALSE)
 names(corr) <- seq(1:length(corr))
-corr <- unlist(corr)
+group <- unlist(mapply(function(x,y){ rep(y, length(x)) }, corr, names(corr)))
+corr <- unlist(corr, use.names=TRUE)
 corr <- as.data.frame(corr)
-corr$group <- rownames(corr)
-corr$group <- substr(corr$group, 1, 1)
-corr <- corr[corr$group %in% corr$group[duplicated(corr$group)],]
+corr$group <- group
+
 
 #plot(corr) #save image to folder w/ variables, for future reference
 
+#this was overwriting in a weird order and I didn't feel like fixing automatically so I fixed manually. Come back and figure out why...
 for(i in 1:nrow(corr)){
   db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
-  dbSendQuery(db_cem, paste("UPDATE lkpEnvVar SET CorrGroup = ", sQuote(corr$group[i])," WHERE rasCode = ", sQuote(corr$corr[i]),";", sep="") )
+  dbSendQuery(db_cem, paste("UPDATE lkpEnvVar SET corrgroup = ", sQuote(corr$group[i])," WHERE rasname = ", sQuote(corr$corr[i]),";", sep="") )
   dbDisconnect(db_cem)
   #Sys.sleep(.1)
 }
+
+
+

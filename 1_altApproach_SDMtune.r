@@ -16,16 +16,24 @@ cat("Loading the predictor data...")
 studyArea <- arc.open(studyArea)
 studyArea <- arc.select(studyArea)
 studyArea <- arc.data2sf(studyArea)
+studyArea <- st_transform(studyArea, crs=crs(predictors_Current))
 
 # stack the predictors
 predictors_Current <- stack(list.files(pathPredictorsCurrent, pattern = 'tif$', full.names=TRUE ))
-predictors_Current <- projectRaster(predictors_Current, crs=crs(studyArea))
-predictors_Future <- stack(list.files(pathPredictorsFuture, pattern = 'tif$', full.names=TRUE ))
-predictors_Future <- projectRaster(predictors_Future, crs=crs(studyArea))
+#predictors_Current <- projectRaster(predictors_Current, crs=4326) #for now this seems to just be messing this layer up....?
+
+predictors_Future4.5 <- stack(list.files(pathPredictorsFuture4.5, pattern = 'tif$', full.names=TRUE ))
+crs(predictors_Future4.5) <- crs(predictors_Current)
+
+predictors_Future8.5 <- stack(list.files(pathPredictorsFuture8.5, pattern = 'tif$', full.names=TRUE ))
+crs(predictors_Future8.5) <- crs(predictors_Current)
 
 # check to see if the names are the same
-setdiff(names(predictors_Current), names(predictors_Future))
-setdiff(names(predictors_Future), names(predictors_Current))
+setdiff(names(predictors_Current), names(predictors_Future4.5))
+setdiff(names(predictors_Future4.5), names(predictors_Current))
+
+setdiff(names(predictors_Current), names(predictors_Future8.5))
+setdiff(names(predictors_Future8.5), names(predictors_Current))
 
 # get set of random points for correlation analysis
 set.seed(25)
@@ -36,14 +44,17 @@ corVar(bg, method="spearman", cor_th=0.7)
 
 # get the species data ################################################################################################
 spData <- arc.open(spData_path)
-spData <- arc.select(spData) #, dQuote(paste("SNAME=", sp_data$SNAME, sep=""))
+spData <- arc.select(spData)
 spData <- arc.data2sf(spData)
-spData_pro <- st_transform(spData, crs=crs(predictors_Current))
+SpData <- spData[spData$SNAME==sp_data$SNAME,]
+SpData <- SpData[SpData$USEDATA %in% c("Y","y"),]#keep only the species marked as a "Y" for modeling
+spData_pro <- st_transform(SpData, crs=crs(predictors_Current))
+
 
 # write a shapeefile of the training data to the input folder for backup or other use
 ifelse(!dir.exists(here::here("_data","species",sp_code,"input")), dir.create(here::here("_data","species",sp_code,"input")), FALSE)
 ifelse(!dir.exists(here::here("_data","species",sp_code,"output")), dir.create(here::here("_data","species",sp_code,"output")), FALSE)
-st_write(spData, here::here("_data", "species", sp_code, "input", paste0(sp_code,"_input.shp")), append=FALSE)
+st_write(spData_pro, here::here("_data", "species", sp_code, "input", paste0(sp_code,"_input.shp")), append=FALSE)
 
 # convert species points to a lat/long df  MOVE THIS BELOW???
 coords_pres <- data.frame(st_coordinates(spData_pro[,1]))
@@ -52,7 +63,7 @@ md_ptTraining <- nrow(coords_pres) # get some metadata
 
 # thin out the points to only one per cell
 coords_pres_thin <- thinData(coords_pres, predictors_Current)
-md_ptTrainingThinned <- nrow(spData) # get some metadata
+md_ptTrainingThinned <- nrow(spData_pro) # get some metadata
 
 # background coordinates. These are 500 random locations, used as in place of absence values as 'pseudoabsences' (the species probably doesn't occur at any random point)
 coords_bg <- as.data.frame(dismo::randomPoints(predictors_Current, 500))
@@ -67,13 +78,17 @@ md_bgThinned <- nrow(coords_bg_thin) # get some metadata
 # rm(a,b)
 
 # create SDW object ############################
-data.SWD <- prepareSWD(species=unique(spData$SNAME), p=coords_pres_thin, a=coords_bg_thin, env=predictors_Current)
+data.SWD <- prepareSWD(species=unique(spData_pro$SNAME), p=coords_pres_thin, a=coords_bg_thin, env=predictors_Current)
 data.SWD
+
+#in case things aren't working and you need to check for missing data at point locations
+#rasValue <- extract(predictors_Current, spData_pro)
+#write.csv(rasValue, file="rasvalue.csv")
 
 plotCor(data.SWD , method="spearman", cor_th=0.7)
 
 
-bg_var_sel <- prepareSWD(species=unique(spData$SNAME), a=coords_bg_thin, env=predictors_Current)
+bg_var_sel <- prepareSWD(species=unique(spData_pro$SNAME), a=coords_bg_thin, env=predictors_Current)
 plotCor(bg_var_sel, method="spearman", cor_th=0.7)
 corVar(bg_var_sel, method="spearman", cor_th=0.7)
 
@@ -85,7 +100,7 @@ folds <- randomFolds(data.SWD, k=4, only_presence=TRUE) #, seed=5
 
 for(i in 1:length(ModelMethods)){
   cat("--------------------------------------------------------\n")
-  cat(paste("Running a ", ModelMethods[i], " model for ", unique(spData$SNAME),".\n", sep=""))
+  cat(paste("Running a ", ModelMethods[i], " model for ", unique(spData_pro$SNAME),".\n", sep=""))
 
   cv_model <- train(method=ModelMethods[i], data=data.SWD, folds=folds)  # model <- train(method = "Maxent", data = data, fc = "lh", reg = 0.5, iter = 700)
   cv_model
@@ -183,18 +198,41 @@ for(i in 1:length(ModelMethods)){
   dbDisconnect(db_cem)
   
   
-  
   # predict the model to the future env predictors
   cat("- predicting the model to the future env predictors\n")
   timeframe <- "future"
   if(ModelMethods[i]=="Maxent"){
-    map <- predict(vs, data=predictors_Future, type="cloglog")
+    map <- predict(vs, data=predictors_Future4.5, type="cloglog")
   } else if(ModelMethods[i]=="RF"|ModelMethods[i]=="BRT") {
-    map <- predict(vs, data=predictors_Future)
+    map <- predict(vs, data=predictors_Future4.5)
   } else {
     cat("No valid model predictor method exists...\n")
   }
   plotPred(map) # plot and write the future map
+  rasnameFuture <- here::here("_data","species",sp_code,"output",paste(model_run_name, "_", ModelMethods[i], "_", timeframe, ".tif", sep=""))
+  writeRaster(map, rasnameFuture, "GTiff", overwrite=TRUE)
+  # insert prediction file names into the database
+  
+  cat("Inserting more metadata into the database\n")
+  
+  #predict_future_fn
+  db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
+  SQLquery <- paste("UPDATE model_runs SET predict_future_fn = ", sQuote(rasnameFuture), " WHERE model_run_name = ", sQuote(model_run_name), " AND model_type = ", sQuote(ModelMethods[i]), sep="") 
+  dbSendStatement(db_cem, SQLquery)
+  dbDisconnect(db_cem)
+  
+  
+  # predict the model to the future env predictors--using 8.5 scenario
+  cat("- predicting the model to the future 8.5 env predictors\n")
+  timeframe <- "future8.5"
+  if(ModelMethods[i]=="Maxent"){
+    map8.5 <- predict(vs, data=predictors_Future8.5, type="cloglog")
+  } else if(ModelMethods[i]=="RF"|ModelMethods[i]=="BRT") {
+    map8.5 <- predict(vs, data=predictors_Future8.5)
+  } else {
+    cat("No valid model predictor method exists...\n")
+  }
+  plotPred(map8.5) # plot and write the future map
   rasnameFuture <- here::here("_data","species",sp_code,"output",paste(model_run_name, "_", ModelMethods[i], "_", timeframe, ".tif", sep=""))
   writeRaster(map, rasnameFuture, "GTiff", overwrite=TRUE)
   
@@ -203,12 +241,12 @@ for(i in 1:length(ModelMethods)){
   
   #predict_future_fn
   db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
-  SQLquery <- paste("UPDATE model_runs SET predict_future_fn = ", sQuote(rasnameFuture), " WHERE model_run_name = ", sQuote(model_run_name), " AND model_type = ", sQuote(ModelMethods[i]), sep="") 
+  SQLquery <- paste("UPDATE model_runs SET predict_future_fn85 = ", sQuote(rasnameFuture), " WHERE model_run_name = ", sQuote(model_run_name), " AND model_type = ", sQuote(ModelMethods[i]), sep="") 
   dbSendStatement(db_cem, SQLquery)
   dbDisconnect(db_cem)
-
+  
   # cleanup
   rm(cv_model, vs, vi)
-  cat(paste("Finished with the ", ModelMethods[i], " model for ", unique(spData$SNAME),".\n", sep=""))
+  cat(paste("Finished with the ", ModelMethods[i], " model for ", unique(spData_pro$SNAME),".\n", sep=""))
 }
 
