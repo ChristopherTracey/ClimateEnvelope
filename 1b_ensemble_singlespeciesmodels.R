@@ -34,29 +34,27 @@ map_path <- here::here("_data", "species", sp_code, "output")
 
 #if you are starting this section separately from running a set of models, then you can manually define your model_run_name here
 if (runtype=="start fresh") {
-
-model_run_name <- "abiebals_20211222_135814" #input the model run name you need
-sp_code <- "abiebals" # which species are you working with? Abies balsamifera  
+  #model_run_name <- "abiebals_20211222_135814" #input the model run name you need
+  #sp_code <- "abiebals" # which species are you working with? Abies balsamifera  
   
-sp_code <- sp_code
-db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
-model_runs <- dbGetQuery(db_cem, paste("SELECT model_run_name FROM MODEL_RUNS WHERE sp_code = " , sQuote(sp_code), sep="") )
-model_runs <- model_runs[,1] #switching from a dataframe to a vector
-model_runs
-db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
-SQLquery <- paste("SELECT model_run_name, model_type, predict_current_fn, predict_future_fn, predict_future_fn, predict_future_fn85, Thresholdmean_minTrainPres, Thresholdsd_minTrainPres, TSSpost FROM MODEL_RUNS WHERE model_run_name = ", sQuote(model_run_name)) 
-model_metadata <- dbGetQuery(db_cem, SQLquery)
-dbDisconnect(db_cem)
-model_metadata <- unique(model_metadata)
+  sp_code <- sp_code
+  db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
+  model_runs <- dbGetQuery(db_cem, paste("SELECT model_run_name FROM MODEL_RUNS WHERE sp_code = " , sQuote(sp_code), sep="") )
+  model_runs <- model_runs[,1] #switching from a dataframe to a vector
+  model_runs
+  db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
+  SQLquery <- paste("SELECT model_run_name, model_type, predict_current_fn, predict_future_fn, predict_future_fn, predict_future_fn85, Thresholdmean_minTrainPres, Thresholdsd_minTrainPres, TSSpost FROM MODEL_RUNS WHERE model_run_name = ", sQuote(unique(model_runs))) 
+  model_metadata <- dbGetQuery(db_cem, SQLquery)
+  dbDisconnect(db_cem)
+  model_metadata <- unique(model_metadata)
 }  else {  
-
-# get model output names from metadata
-db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
-SQLquery <- paste("SELECT model_run_name, model_type, predict_current_fn, predict_future_fn, predict_future_fn85, Thresholdmean_minTrainPres, Thresholdsd_minTrainPres, TSSpost FROM MODEL_RUNS WHERE model_run_name = ", sQuote(model_run_name)) 
-model_metadata <- dbGetQuery(db_cem, SQLquery)
-dbDisconnect(db_cem)
-model_metadata <- unique(model_metadata) # git it down to one row as I have it write out two rows for some reason..
-  }
+  # get model output names from metadata
+  db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
+  SQLquery <- paste("SELECT model_run_name, model_type, predict_current_fn, predict_future_fn, predict_future_fn85, Thresholdmean_minTrainPres, Thresholdsd_minTrainPres, TSSpost FROM MODEL_RUNS WHERE model_run_name = ", sQuote(model_run_name)) 
+  model_metadata <- dbGetQuery(db_cem, SQLquery)
+  dbDisconnect(db_cem)
+  model_metadata <- unique(model_metadata) # git it down to one row as I have it write out two rows for some reason..
+}
 
 #####
 crs_map <- "+proj=lcc +lat_0=0 +lon_0=-95 +lat_1=49 +lat_2=77 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"
