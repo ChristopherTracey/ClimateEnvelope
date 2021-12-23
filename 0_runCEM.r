@@ -25,7 +25,6 @@ options(useFancyQuotes=FALSE) # needed to make sure SQL queries work as well as 
 source(here::here("helperFunctions.r"))
 
 ## STEP 1: Variables and Such ################################
-
 # species code (from lkpSpecies in modelling database. This will be the new folder name containing inputs/outputs)
 sp_code <- "abiebals" # Abies balsamifera
 # model methods
@@ -36,8 +35,8 @@ nm_db_file <- here("_data", "databases", "CEMdata.sqlite")
 spData_path <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/SppSpatialData/All_SpPoints/Sp_Points.shp"
 # project area, shapefile or gdb feature class
 studyArea <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/EnvironmentalData_FullExtent/Refugia Modeling Boundary/Refugia Modeling Boundary.shp"
-# predictor datasets
 
+# predictor datasets
 pathPredictorsCurrent <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/EnvironmentalData_FullExtent/NA_NORM_8110_Bioclim_ASCII/NewVars_masked"
 pathPredictorsFuture4.5 <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/EnvironmentalData_FullExtent/NA_ENSEMBLE_rcp45_2050s_Bioclim_ASCII/NewVars_masked"
 pathPredictorsFuture8.5 <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/EnvironmentalData_FullExtent/NA_ENSEMBLE_rcp85_2050s_Bioclim_ASCII/NewVars_masked"
@@ -47,6 +46,9 @@ modeller = "Anna Johnson"
 #model output path
 #Model_outputpath <- here::here(paste("_data/","species","/",sp_code,"/output", sep=""))
 
+# set up projection parameter for use throughout script--albers
+ascproj <- CRS("+proj=laea +lat_0=45 +lon_0=-100 +x_0=4321000 +y_0=3210000 +ellps=GRS80 +towgs84=0,0,0,0,0,0,0 +") #projection of AdaptWest asc layers
+#proj <- CRS("+proj=aea +lat_1=40 +lat_2=42 +lat_0=39 +lon_0=-78 +x_0=0 +y_0=0 +ellps=GRS80 +units=m +no_defs") #projection for PA
 
 
 ## STEP 2: Run a Model ################################
