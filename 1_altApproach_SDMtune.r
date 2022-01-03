@@ -73,8 +73,6 @@ if(isFALSE(identical(sort(unlist(a)), sort(unlist(b))))){
 }
 rm(a,b,spData,SpData)
 
-
-
 # write a shapefile of the training data to the input folder for backup or other use
 ifelse(!dir.exists(here::here("_data","species",sp_code,"input")), dir.create(here::here("_data","species",sp_code,"input")), FALSE)
 ifelse(!dir.exists(here::here("_data","species",sp_code,"output")), dir.create(here::here("_data","species",sp_code,"output")), FALSE)
@@ -95,12 +93,6 @@ md_bg <- nrow(coords_bg) # get some metadata
 coords_bg_thin <- thinData(coords_bg, predictors_Current)
 md_bgThinned <- nrow(coords_bg_thin) # get some metadata
 
-# # check to see if the coordinate systems are the same
-# a <- stringr::str_split(as.character(crs(predictors_Current)), ' ')
-# b <- stringr::str_split(as.character(crs(spData)), ' ')
-# identical(sort(unlist(a)), sort(unlist(b)))
-# rm(a,b)
-
 # create SDW object ############################
 data.SWD <- prepareSWD(species=unique(spData_pro$SNAME), p=coords_pres_thin, a=coords_bg_thin, env=predictors_Current)
 data.SWD
@@ -110,7 +102,6 @@ data.SWD
 #write.csv(rasValue, file="rasvalue.csv")
 
 plotCor(data.SWD , method="spearman", cor_th=0.7)
-
 
 bg_var_sel <- prepareSWD(species=unique(spData_pro$SNAME), a=coords_bg_thin, env=predictors_Current)
 plotCor(bg_var_sel, method="spearman", cor_th=0.7)
@@ -180,7 +171,7 @@ for(i in 1:length(ModelMethods)){
   }
 
   # insert some model run metadata
-  cat("Inserting metadata into the database")
+  cat("Inserting metadata into the database\n")
   sf_metadata <- data.frame("sp_code"=sp_code, "model_run_name"=model_run_name, "model_type"=ModelMethods[i], "modeller"=modeller, "TrainingPoints"=md_ptTraining, "TrainingPoints_thinned"=md_ptTrainingThinned, "BackgroundPoints"=md_bg, "BackgroundPoints_thinned"=md_bgThinned, "AUCpre"=md_aucPre, "AUCpost"=md_aucPost, "TSSpre"=md_tssPre, "TSSpost"=md_tssPost, "Thresholdmean_minTrainPres"=Thresholdmean_minTrainPres, "Thresholdsd_minTrainPres"=Thresholdsd_minTrainPres)
   db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
   SQLquery <- paste("INSERT INTO model_runs (", paste(names(sf_metadata), collapse = ',') ,") VALUES (",paste(sQuote(sf_metadata[1,]), collapse = ','),");", sep="") 
@@ -223,8 +214,8 @@ for(i in 1:length(ModelMethods)){
   
   
   # predict the model to the future env predictors
-  cat("- predicting the model to the future env predictors\n")
-  timeframe <- "future"
+  cat("- predicting the model to the future 4.5 env predictors\n")
+  timeframe <- "future4.5"
   if(ModelMethods[i]=="Maxent"){
     map <- predict(vs, data=predictors_Future4.5, type="cloglog")
   } else if(ModelMethods[i]=="RF"|ModelMethods[i]=="BRT") {
