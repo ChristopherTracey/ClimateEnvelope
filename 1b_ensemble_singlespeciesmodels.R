@@ -195,31 +195,27 @@ bin_fut2 <- function(x) {
   ifelse(x <=  mean_threshold, 0,
          ifelse(x >  mean_threshold, 1, NA)) }
 
-future_m <- calc(future, fun=mean) #unweighted mean of three models
-current_m <- calc(current, fun=mean) #unweighted mean of three models
-future_m85 <- calc(future85, fun=mean)
+current_m <- calc(current, fun=mean) # unweighted mean of three models
+future45_m <- calc(future, fun=mean) # unweighted mean of three models
+future85_m <- calc(future85, fun=mean) # unweighted mean of three models
 
-future_bin3_s <- calc(future_m, fun=bin_fut2) #this is the thresholded version of the three models averaged, and then the threshold is set by the average. I think this is a thing you can do?
-current_bin3_s <- calc(current_m, fun=bin_fut2) #for the current model, same deal
-future85_bin3_s <- calc(future_m85, fun=bin_fut2)
+future45_bin3_s <- calc(futur45e_m, fun=bin_fut2) # this is the thresholded version of the three models averaged, and then the threshold is set by the average. I think this is a thing you can do?
+current_bin3_s <- calc(current_m, fun=bin_fut2) # for the current model, same deal
+future85_bin3_s <- calc(future85_m, fun=bin_fut2)
 
 plot(current_bin3_s)
-plot(future_bin3_s)
+plot(future45_bin3_s)
 plot(future85_bin3_s)
 
-
-
-
-
 ##### Save ensemble binned models in species output folder#####
-writeRaster(current_bin3_s, map_path, overwrite=TRUE)
-writeRaster(future_bin3_s, map_path, overwrite=TRUE)
-writeRaster(future85_bin3_s, map_path, overwrite=TRUE)
+writeRaster(current_bin3_s, here::here("_data", "species", sp_code, "output", "current_bin3_s"), "GTiff", overwrite=TRUE)
+writeRaster(future45_bin3_s, here::here("_data", "species", sp_code, "output", "future45_bin3_s"), "GTiff", overwrite=TRUE)
+writeRaster(future85_bin3_s, here::here("_data", "species", sp_code, "output", "future85_bin3_s"), "GTiff", overwrite=TRUE)
 
 # build CEM expand - contract - stable map, using the 4.5 scenario
-future_bin3_s <- reclassify(future_bin3_s, c(-Inf, .25, 0, .25, 2, 2)) #reclassify the future to a 0,2 raster
+future_bin3_s <- reclassify(future45_bin3_s, c(-Inf, .25, 0, .25, 2, 2)) #reclassify the future to a 0,2 raster
 
-cem_cf <- stack(current_bin3_s, future_bin3_s)
+cem_cf <- stack(current_bin3_s, future45_bin3_s)
 cem_cv_s <- calc(cem_cf, fun=sum)
 
 cem_cv_sdf <- as.data.frame(cem_cv_s, xy = TRUE) %>% na.omit()
