@@ -36,7 +36,6 @@ map_path <- here::here("_data", "species", sp_code, "output")
 if (runtype=="start fresh") {
   #model_run_name <- "abiebals_20211222_135814" #input the model run name you need
   #sp_code <- "abiebals" # which species are you working with? Abies balsamifera  
-  
   sp_code <- sp_code
   db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
   model_runs <- dbGetQuery(db_cem, paste("SELECT model_run_name FROM MODEL_RUNS WHERE sp_code = " , sQuote(sp_code), sep="") )
@@ -56,10 +55,7 @@ if (runtype=="start fresh") {
   model_metadata <- unique(model_metadata) # git it down to one row as I have it write out two rows for some reason..
 }
 
-#####
-crs_map <- "+proj=lcc +lat_0=0 +lon_0=-95 +lat_1=49 +lat_2=77 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"
-#binarize individual rasters, based on the minimum training presence threshold
-crs(predictors_Current)
+###### binarize individual rasters, based on the minimum training presence threshold
 
 # load the current and future rasters
 BRT_current <- raster(model_metadata[which(model_metadata$model_type=="BRT"),"predict_current_fn"])
@@ -128,7 +124,6 @@ current_wm_pts <- ggplot() + geom_raster(data=current_wmdf, aes(x=x, y=y, fill=L
   geom_point(data=sp_pts, aes(x=X, y=Y),shape=3) + geom_sf(data=states, fill=NA, color="black") +
 scale_fill_viridis_c(limits = c(0, 1)) + theme_void() + theme(legend.position = "bottom")
 current_wm_pts
-
 ggsave(filename="current_wm_pts.png", plot=last_plot(), path = map_path, device='png', dpi=300)
 
 #create map and export WITHOUT spp points overlaid
