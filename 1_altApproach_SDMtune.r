@@ -16,20 +16,16 @@ cat("Loading the predictor data...")
 studyArea <- arc.open(studyArea)
 studyArea <- arc.select(studyArea)
 studyArea <- arc.data2sf(studyArea)
-#
 
 # load and stack the Current predictors
 predictors_Current <- stack(list.files(pathPredictorsCurrent, pattern = 'tif$', full.names=TRUE ))
 
-# reproject the study area
-
 # check to see if the crs of the current predictors and the study area are the same
 a <- str_split(crs(studyArea), ' ')
 b <- str_split(crs(predictors_Current), ' ')
-
 if(isFALSE(identical(sort(unlist(a)), sort(unlist(b))))){
   cat("CRS's of the study area and predictors are mismatched. Reprojecting...")
-  studyArea <- st_transform(studyArea, crs=crs(predictors_Current))
+  studyArea <- st_transform(studyArea, crs=crs(predictors_Current)) # reproject the study area
   a <- str_split(crs(studyArea), ' ')
   identical(sort(unlist(a)), sort(unlist(b)))
 } else {
@@ -40,16 +36,15 @@ rm(a,b)
 # load and stack the Future predictors
 predictors_Future4.5 <- stack(list.files(pathPredictorsFuture4.5, pattern = 'tif$', full.names=TRUE ))
 crs(predictors_Future4.5) <- crs(predictors_Current)
-
 predictors_Future8.5 <- stack(list.files(pathPredictorsFuture8.5, pattern = 'tif$', full.names=TRUE ))
 crs(predictors_Future8.5) <- crs(predictors_Current)
 
 # check to see if the names are the same
-setdiff(names(predictors_Current), names(predictors_Future4.5))
-setdiff(names(predictors_Future4.5), names(predictors_Current))
-
-setdiff(names(predictors_Current), names(predictors_Future8.5))
-setdiff(names(predictors_Future8.5), names(predictors_Current))
+if(isTRUE(identical(sort(names(predictors_Current)), sort(names(predictors_Future4.5))))&isTRUE(identical(sort(names(predictors_Current)), sort(names(predictors_Future8.5))))){
+  cat("All raster layers are correctly named...")
+} else {
+  cat("You have a name mismatch somewhere in the future raster layers")
+}
 
 # get set of random points for correlation analysis
 set.seed(25)
