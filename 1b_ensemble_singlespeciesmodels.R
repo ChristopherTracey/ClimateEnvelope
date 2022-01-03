@@ -146,49 +146,48 @@ future_bin85 <- stack(Maxent_future_bin85, BRT_future_bin85, RF_future_bin85)
 future_bin_s85 <- calc(future_bin85, sum)
 
 # stack and average the future maps, weighting by TSS
-future <- stack(BRT_future, Maxent_future, RF_future)
-future_wm <- weighted.mean(future, w=model_metadata$TSSpost) #weighted mean of the three current models, w/ TSS used to weight. This is a continuous model
-future_wmdf <- as.data.frame(future_wm, xy = TRUE) %>% na.omit()
-names(future_wmdf) <- names_rdf
+future45 <- stack(BRT_future, Maxent_future, RF_future)
+future45_wm <- weighted.mean(future45, w=model_metadata$TSSpost) #weighted mean of the three current models, w/ TSS used to weight. This is a continuous model
+future45_wmdf <- as.data.frame(future45_wm, xy = TRUE) %>% na.omit()
+names(future45_wmdf) <- names_rdf
 
 # stack and average the future maps for the 8.5 scenario, weighting by TSS
 future85 <- stack(BRT_future85, Maxent_future85, RF_future85)
-future_wm85 <- weighted.mean(future85, w=model_metadata$TSSpost) #weighted mean of the three current models, w/ TSS used to weight. This is a continuous model
-future_wmdf85 <- as.data.frame(future_wm85, xy = TRUE) %>% na.omit()
-names(future_wmdf85) <- names_rdf
+future85_wm <- weighted.mean(future85, w=model_metadata$TSSpost) #weighted mean of the three current models, w/ TSS used to weight. This is a continuous model
+future85_wmdf <- as.data.frame(future85_wm, xy = TRUE) %>% na.omit()
+names(future85_wmdf) <- names_rdf
 
-plot(future_wm85)
+plot(future85_wm)
 
 #create map and export WITH spp points overlaid
-future_wm_pts <- ggplot() + 
+future45_wm_pts <- ggplot() + 
   geom_raster(data=future_wmdf, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
   geom_point(data=sp_pts, aes(x=X, y=Y),shape=3) + geom_sf(data=states, fill=NA, color="black") +
   scale_fill_viridis_c(limits = c(0, 1)) + theme_void() + theme(legend.position = "bottom")
-ggsave(filename="future_45_wm_pts.png", plot=future_wm_pts, path = map_path, device='png', dpi=300)
+ggsave(filename="future_45_wm_pts.png", plot=future45_wm_pts, path = map_path, device='png', dpi=300)
 
 #create map and export WITHOUT spp points overlaid
-future_wm <- ggplot() + 
+future45_wm <- ggplot() + 
   geom_raster(data=future_wmdf, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
   geom_sf(data=states, fill=NA, color="black") +
   scale_fill_viridis_c(limits = c(0, 1)) + theme_void() + theme(legend.position = "bottom")
-ggsave(filename="future_45_wm.png", plot=future_wm, path = map_path, device='png', dpi=300)
+ggsave(filename="future_45_wm.png", plot=future45_wm, path = map_path, device='png', dpi=300)
 
 #and do the same for the 8.5 future scenario
-future_wm_pts85 <- ggplot() + 
-  geom_raster(data=future_wmdf85, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
+future85_wm_pts <- ggplot() + 
+  geom_raster(data=future85_wmdf, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
   geom_point(data=sp_pts, aes(x=X, y=Y),shape=3) + geom_sf(data=states, fill=NA, color="black") +
   scale_fill_viridis_c(limits = c(0, 1)) + theme_void() + theme(legend.position = "bottom")
-ggsave(filename="future_85_wm_pts.png", plot=future_wm_pts85, path = map_path, device='png', dpi=300)
+ggsave(filename="future_85_wm_pts.png", plot=future85_wm_pts, path = map_path, device='png', dpi=300)
 
 #create map and export WITHOUT spp points overlaid
-future_wm85 <- ggplot() + 
-  geom_raster(data=future_wmdf85, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
+future85_wm <- ggplot() + 
+  geom_raster(data=future85_wmdf, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
   geom_sf(data=states, fill=NA, color="black") +
   scale_fill_viridis_c(limits = c(0, 1)) + theme_void() + theme(legend.position = "bottom")
-ggsave(filename="future_85_wm.png", plot=future_wm85, path = map_path, device='png', dpi=300)
+ggsave(filename="future_85_wm.png", plot=future85_wm, path = map_path, device='png', dpi=300)
 
 #Averaged binned ensemble model (use mean of threshold values to threshold the mean ensemble future model)
-
 mean_threshold <- mean(c(Maxent_t, BRT_t, RF_t))
 
 bin_fut2 <- function(x) {
@@ -196,11 +195,11 @@ bin_fut2 <- function(x) {
          ifelse(x >  mean_threshold, 1, NA)) }
 
 current_m <- calc(current, fun=mean) # unweighted mean of three models
-future45_m <- calc(future, fun=mean) # unweighted mean of three models
+future45_m <- calc(future45, fun=mean) # unweighted mean of three models
 future85_m <- calc(future85, fun=mean) # unweighted mean of three models
 
-future45_bin3_s <- calc(futur45e_m, fun=bin_fut2) # this is the thresholded version of the three models averaged, and then the threshold is set by the average. I think this is a thing you can do?
 current_bin3_s <- calc(current_m, fun=bin_fut2) # for the current model, same deal
+future45_bin3_s <- calc(future45_m, fun=bin_fut2) # this is the thresholded version of the three models averaged, and then the threshold is set by the average. I think this is a thing you can do?
 future85_bin3_s <- calc(future85_m, fun=bin_fut2)
 
 plot(current_bin3_s)
@@ -208,9 +207,9 @@ plot(future45_bin3_s)
 plot(future85_bin3_s)
 
 ##### Save ensemble binned models in species output folder#####
-writeRaster(current_bin3_s, here::here("_data", "species", sp_code, "output", "current_bin3_s"), "GTiff", overwrite=TRUE)
-writeRaster(future45_bin3_s, here::here("_data", "species", sp_code, "output", "future45_bin3_s"), "GTiff", overwrite=TRUE)
-writeRaster(future85_bin3_s, here::here("_data", "species", sp_code, "output", "future85_bin3_s"), "GTiff", overwrite=TRUE)
+writeRaster(current_bin3_s, here::here("_data", "species", sp_code, "output", paste("current_bin3_s",".tif", sep="")), overwrite=TRUE)
+writeRaster(future45_bin3_s, here::here("_data", "species", sp_code, "output", paste("future45_bin3_s",".tif", sep="")), overwrite=TRUE)
+writeRaster(future85_bin3_s, here::here("_data", "species", sp_code, "output", paste("future85_bin3_s",".tif", sep="")), overwrite=TRUE)
 
 # build CEM expand - contract - stable map, using the 4.5 scenario
 future_bin3_s <- reclassify(future45_bin3_s, c(-Inf, .25, 0, .25, 2, 2)) #reclassify the future to a 0,2 raster
