@@ -59,28 +59,20 @@ if (runtype=="start fresh") {
 #####
 crs_map <- "+proj=lcc +lat_0=0 +lon_0=-95 +lat_1=49 +lat_2=77 +x_0=0 +y_0=0 +datum=WGS84 +units=m +no_defs"
 #binarize individual rasters, based on the minimum training presence threshold
+crs(predictors_Current)
 
 # load the current and future rasters
 BRT_current <- raster(model_metadata[which(model_metadata$model_type=="BRT"),"predict_current_fn"])
-crs(BRT_current) <- crs_map
 Maxent_current <- raster(model_metadata[which(model_metadata$model_type=="Maxent"),"predict_current_fn"])
-crs(Maxent_current) <- crs_map
 RF_current <- raster(model_metadata[which(model_metadata$model_type=="RF"),"predict_current_fn"])
-crs(RF_current) <- crs_map
 
 BRT_future <- raster(model_metadata[which(model_metadata$model_type=="BRT"),"predict_future_fn"])
-crs(BRT_future) <- crs_map
 Maxent_future <- raster(model_metadata[which(model_metadata$model_type=="Maxent"),"predict_future_fn"])
-crs(Maxent_future) <- crs_map
 RF_future <- raster(model_metadata[which(model_metadata$model_type=="RF"),"predict_future_fn"])
-crs(RF_future) <- crs_map
 
 BRT_future85 <- raster(model_metadata[which(model_metadata$model_type=="BRT"),"predict_future_fn85"])
-crs(BRT_future85) <- crs_map
 Maxent_future85 <- raster(model_metadata[which(model_metadata$model_type=="Maxent"),"predict_future_fn85"])
-crs(Maxent_future85) <- crs_map
 RF_future85 <- raster(model_metadata[which(model_metadata$model_type=="RF"),"predict_future_fn85"])
-crs(RF_future85) <- crs_map
 
 #threshold values
 Maxent_t <- model_metadata[which(model_metadata$model_type=="Maxent"),"Thresholdmean_minTrainPres"]
@@ -176,36 +168,36 @@ names(future_wmdf85) <- names_rdf
 plot(future_wm85)
 
 #create map and export WITH spp points overlaid
-future_wm_pts <- ggplot() + geom_raster(data=future_wmdf, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
+future_wm_pts <- ggplot() + 
+  -geom_raster(data=future_wmdf, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
   geom_point(data=sp_pts, aes(x=X, y=Y),shape=3) + geom_sf(data=states, fill=NA, color="black") +
   scale_fill_viridis_c(limits = c(0, 1)) + theme_void() + theme(legend.position = "bottom")
 future_wm_pts
-
-ggsave(filename="future_wm_pts.png", plot=last_plot(), path = map_path, device='png', dpi=300)
+ggsave(filename="future_45_wm_pts.png", plot=last_plot(), path = map_path, device='png', dpi=300)
 
 #create map and export WITHOUT spp points overlaid
-future_wm <- ggplot() + geom_raster(data=future_wmdf, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
+future_wm <- ggplot() + 
+  geom_raster(data=future_wmdf, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
   geom_sf(data=states, fill=NA, color="black") +
   scale_fill_viridis_c(limits = c(0, 1)) + theme_void() + theme(legend.position = "bottom")
 future_wm
-
-ggsave(filename="future_wm.png", plot=last_plot(), path = map_path, device='png', dpi=300)
+ggsave(filename="future_45_wm.png", plot=last_plot(), path = map_path, device='png', dpi=300)
 
 #and do the same for the 8.5 future scenario
-future_wm_pts85 <- ggplot() + geom_raster(data=future_wmdf85, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
+future_wm_pts85 <- ggplot() + 
+  geom_raster(data=future_wmdf85, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
   geom_point(data=sp_pts, aes(x=X, y=Y),shape=3) + geom_sf(data=states, fill=NA, color="black") +
   scale_fill_viridis_c(limits = c(0, 1)) + theme_void() + theme(legend.position = "bottom")
 future_wm_pts85
-
-ggsave(filename="future_wm_pts85.png", plot=last_plot(), path = map_path, device='png', dpi=300)
+ggsave(filename="future_85_wm_pts.png", plot=last_plot(), path = map_path, device='png', dpi=300)
 
 #create map and export WITHOUT spp points overlaid
-future_wm85 <- ggplot() + geom_raster(data=future_wmdf85, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
+future_wm85 <- ggplot() + 
+  geom_raster(data=future_wmdf85, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
   geom_sf(data=states, fill=NA, color="black") +
   scale_fill_viridis_c(limits = c(0, 1)) + theme_void() + theme(legend.position = "bottom")
 future_wm85
-
-ggsave(filename="future_wm85.png", plot=last_plot(), path = map_path, device='png', dpi=300)
+ggsave(filename="future_85_wm.png", plot=last_plot(), path = map_path, device='png', dpi=300)
 
 #Averaged binned ensemble model (use mean of threshold values to threshold the mean ensemble future model)
 
