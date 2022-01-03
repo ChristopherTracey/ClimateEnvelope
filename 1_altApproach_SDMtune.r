@@ -16,12 +16,28 @@ cat("Loading the predictor data...")
 studyArea <- arc.open(studyArea)
 studyArea <- arc.select(studyArea)
 studyArea <- arc.data2sf(studyArea)
-studyArea <- st_transform(studyArea, crs=crs(predictors_Current))
+#
 
-# stack the predictors
+# load and stack the Current predictors
 predictors_Current <- stack(list.files(pathPredictorsCurrent, pattern = 'tif$', full.names=TRUE ))
-#predictors_Current <- projectRaster(predictors_Current, crs=4326) #for now this seems to just be messing this layer up....?
 
+# reproject the study area
+
+# check to see if the crs of the current predictors and the study area are the same
+a <- str_split(crs(studyArea), ' ')
+b <- str_split(crs(predictors_Current), ' ')
+
+if(isFALSE(identical(sort(unlist(a)), sort(unlist(b))))){
+  cat("CRS's of the study area and predictors are mismatched. Reprojecting...")
+  studyArea <- st_transform(studyArea, crs=crs(predictors_Current))
+  a <- str_split(crs(studyArea), ' ')
+  identical(sort(unlist(a)), sort(unlist(b)))
+} else {
+  cat("CRS's of the study area and predictors are the same. No worries...")
+}
+rm(a,b)
+
+# load and stack the Future predictors
 predictors_Future4.5 <- stack(list.files(pathPredictorsFuture4.5, pattern = 'tif$', full.names=TRUE ))
 crs(predictors_Future4.5) <- crs(predictors_Current)
 
