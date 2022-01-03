@@ -7,6 +7,7 @@
 library(here)
 library(arcgisbinding)
 arc.check_product()
+arc.check_portal()
 library(ggplot2)
 library(RSQLite)
 library(sf)
@@ -26,7 +27,7 @@ source(here::here("helperFunctions.r"))
 
 ## STEP 1: Variables and Such ################################
 # species code (from lkpSpecies in modelling database. This will be the new folder name containing inputs/outputs)
-sp_code <- "juncbrac" # Abies balsamifera
+sp_code <- "lithlati" # Abies balsamifera
 # model methods
 ModelMethods <- c("Maxent","BRT","RF")
 # Modeling database
@@ -41,7 +42,7 @@ pathPredictorsCurrent <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/Environm
 pathPredictorsFuture4.5 <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/EnvironmentalData_FullExtent/NA_ENSEMBLE_rcp45_2050s_Bioclim_ASCII/NewVars_masked"
 pathPredictorsFuture8.5 <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/EnvironmentalData_FullExtent/NA_ENSEMBLE_rcp85_2050s_Bioclim_ASCII/NewVars_masked"
 # your name
-modeller = "Anna Johnson"
+modeller = "Christopher Tracey"
 
 #model output path
 #Model_outputpath <- here::here(paste("_data/","species","/",sp_code,"/output", sep=""))
