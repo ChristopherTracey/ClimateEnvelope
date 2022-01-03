@@ -123,16 +123,13 @@ sp_pts <- as.data.frame(st_coordinates(spData_pro))
 current_wm_pts <- ggplot() + geom_raster(data=current_wmdf, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
   geom_point(data=sp_pts, aes(x=X, y=Y),shape=3) + geom_sf(data=states, fill=NA, color="black") +
 scale_fill_viridis_c(limits = c(0, 1)) + theme_void() + theme(legend.position = "bottom")
-current_wm_pts
-ggsave(filename="current_wm_pts.png", plot=last_plot(), path = map_path, device='png', dpi=300)
+ggsave(filename="current_wm_pts.png", plot=current_wm_pts, path = map_path, device='png', dpi=300)
 
 #create map and export WITHOUT spp points overlaid
 current_wm <- ggplot() + geom_raster(data=current_wmdf, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
   geom_sf(data=states, fill=NA, color="black") +
   scale_fill_viridis_c(limits = c(0, 1)) + theme_void() + theme(legend.position = "bottom")
-current_wm
-
-ggsave(filename="current_wm.png", plot=last_plot(), path = map_path, device='png', dpi=300)
+ggsave(filename="current_wm.png", plot=current_wm, path = map_path, device='png', dpi=300)
 
 # binarize the future rasters (4.5, the baseline reporting scenario we're using)
 Maxent_future_bin <- calc(Maxent_future, fun=bin_M)
@@ -167,32 +164,28 @@ future_wm_pts <- ggplot() +
   -geom_raster(data=future_wmdf, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
   geom_point(data=sp_pts, aes(x=X, y=Y),shape=3) + geom_sf(data=states, fill=NA, color="black") +
   scale_fill_viridis_c(limits = c(0, 1)) + theme_void() + theme(legend.position = "bottom")
-future_wm_pts
-ggsave(filename="future_45_wm_pts.png", plot=last_plot(), path = map_path, device='png', dpi=300)
+ggsave(filename="future_45_wm_pts.png", plot=future_wm_pts, path = map_path, device='png', dpi=300)
 
 #create map and export WITHOUT spp points overlaid
 future_wm <- ggplot() + 
   geom_raster(data=future_wmdf, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
   geom_sf(data=states, fill=NA, color="black") +
   scale_fill_viridis_c(limits = c(0, 1)) + theme_void() + theme(legend.position = "bottom")
-future_wm
-ggsave(filename="future_45_wm.png", plot=last_plot(), path = map_path, device='png', dpi=300)
+ggsave(filename="future_45_wm.png", plot=future_wm, path = map_path, device='png', dpi=300)
 
 #and do the same for the 8.5 future scenario
 future_wm_pts85 <- ggplot() + 
   geom_raster(data=future_wmdf85, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
   geom_point(data=sp_pts, aes(x=X, y=Y),shape=3) + geom_sf(data=states, fill=NA, color="black") +
   scale_fill_viridis_c(limits = c(0, 1)) + theme_void() + theme(legend.position = "bottom")
-future_wm_pts85
-ggsave(filename="future_85_wm_pts.png", plot=last_plot(), path = map_path, device='png', dpi=300)
+ggsave(filename="future_85_wm_pts.png", plot=future_wm_pts85, path = map_path, device='png', dpi=300)
 
 #create map and export WITHOUT spp points overlaid
 future_wm85 <- ggplot() + 
   geom_raster(data=future_wmdf85, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
   geom_sf(data=states, fill=NA, color="black") +
   scale_fill_viridis_c(limits = c(0, 1)) + theme_void() + theme(legend.position = "bottom")
-future_wm85
-ggsave(filename="future_85_wm.png", plot=last_plot(), path = map_path, device='png', dpi=300)
+ggsave(filename="future_85_wm.png", plot=future_wm85, path = map_path, device='png', dpi=300)
 
 #Averaged binned ensemble model (use mean of threshold values to threshold the mean ensemble future model)
 
@@ -238,31 +231,30 @@ levels(cem_cv_sdf$Range.Shift) <- c("Null", "Contracting", "Expanding", "Stable"
 
 #THRESHOLD CONTRACT EXPAND STABLE MAP, NO POINTS
 custom_fill_pal <- c("#F2F2F2","#ECB176","#E6E600","#00A600")
-threshold_plot <- ggplot() + geom_raster(data=cem_cv_sdf, aes(x=x, y=y, fill=Range.Shift)) + scale_fill_manual(values= custom_fill_pal) +  geom_sf(data=states, fill=NA, color="black") + theme_void()
-threshold_plot
-ggsave(filename="threshold_plot.png", plot=last_plot(), path = map_path, device='png', dpi=300)
+threshold_plot <- ggplot() + 
+  geom_raster(data=cem_cv_sdf, aes(x=x, y=y, fill=Range.Shift)) + scale_fill_manual(values= custom_fill_pal) +  geom_sf(data=states, fill=NA, color="black") + theme_void()
+ggsave(filename="threshold_plot.png", plot=threshold_plot, path = map_path, device='png', dpi=300)
 
 #THRESHOLD CONTRACT EXPAND STABLE MAP, WITH SPECIES POINTS
-threshold_plot_SP <- ggplot() + geom_raster(data=cem_cv_sdf, aes(x=x, y=y, fill=Range.Shift)) + scale_fill_manual(values= custom_fill_pal) + geom_point(data=sp_pts, aes(x=X, y=Y),shape=3) + geom_sf(data=states, fill=NA, color="black") + theme_void()
-threshold_plot_SP
-
-ggsave(filename="threshold_plot_pts.png", plot=last_plot(), path = map_path, device='png', dpi=300)
-
+threshold_plot_SP <- ggplot() + 
+  geom_raster(data=cem_cv_sdf, aes(x=x, y=y, fill=Range.Shift)) + scale_fill_manual(values= custom_fill_pal) + geom_point(data=sp_pts, aes(x=X, y=Y),shape=3) + geom_sf(data=states, fill=NA, color="black") + theme_void()
+ggsave(filename="threshold_plot_pts.png", plot=threshold_plot_SP, path = map_path, device='png', dpi=300)
 
 
 
 
 
-#### Notes, other stuff, doesn't need to run ####
-
-#### alternative ensemble approaches (not currently using)
-
-# 2. Majority consensus model (sum of 3 binary models, retaining only cells where 2 of 3 models predict presence)
-#re-binning the binary consensus model
-
-bin_fut <- function(x) {
-  ifelse(x <=  1, 0,
-         ifelse(x >  1, 1, NA)) }
-future_bin2_s <- calc(future_bin_s, fun=bin_fut)
-
-plot(future_bin2_s) #just the majority consensus points (2 of 3 models agree)
+# 
+# #### Notes, other stuff, doesn't need to run ####
+# 
+# #### alternative ensemble approaches (not currently using)
+# 
+# # 2. Majority consensus model (sum of 3 binary models, retaining only cells where 2 of 3 models predict presence)
+# #re-binning the binary consensus model
+# 
+# bin_fut <- function(x) {
+#   ifelse(x <=  1, 0,
+#          ifelse(x >  1, 1, NA)) }
+# future_bin2_s <- calc(future_bin_s, fun=bin_fut)
+# 
+# plot(future_bin2_s) #just the majority consensus points (2 of 3 models agree)
