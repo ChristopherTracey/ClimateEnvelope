@@ -161,7 +161,7 @@ plot(future_wm85)
 
 #create map and export WITH spp points overlaid
 future_wm_pts <- ggplot() + 
-  -geom_raster(data=future_wmdf, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
+  geom_raster(data=future_wmdf, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
   geom_point(data=sp_pts, aes(x=X, y=Y),shape=3) + geom_sf(data=states, fill=NA, color="black") +
   scale_fill_viridis_c(limits = c(0, 1)) + theme_void() + theme(legend.position = "bottom")
 ggsave(filename="future_45_wm_pts.png", plot=future_wm_pts, path = map_path, device='png', dpi=300)
@@ -217,7 +217,6 @@ writeRaster(future_bin3_s, map_path, overwrite=TRUE)
 writeRaster(future85_bin3_s, map_path, overwrite=TRUE)
 
 # build CEM expand - contract - stable map, using the 4.5 scenario
-
 future_bin3_s <- reclassify(future_bin3_s, c(-Inf, .25, 0, .25, 2, 2)) #reclassify the future to a 0,2 raster
 
 cem_cf <- stack(current_bin3_s, future_bin3_s)
