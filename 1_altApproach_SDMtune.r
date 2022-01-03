@@ -59,10 +59,23 @@ spData <- arc.select(spData)
 spData <- arc.data2sf(spData)
 SpData <- spData[spData$SNAME==sp_data$SNAME,]
 SpData <- SpData[SpData$USEDATA %in% c("Y","y"),]#keep only the species marked as a "Y" for modeling
-spData_pro <- st_transform(SpData, crs=crs(predictors_Current))
+
+# check to see if projections are the same and modify if not
+a <- str_split(crs(SpData), ' ')
+b <- str_split(crs(predictors_Current), ' ')
+if(isFALSE(identical(sort(unlist(a)), sort(unlist(b))))){
+  cat("CRS's of the species data and predictors are mismatched. Reprojecting the species data...")
+  spData_pro <- st_transform(SpData, crs=crs(predictors_Current)) # reproject the study area
+  a <- str_split(crs(spData_pro), ' ')
+  identical(sort(unlist(a)), sort(unlist(b)))
+} else {
+  cat("CRS's of the species data and predictors are the same. No worries...")
+}
+rm(a,b,spData,SpData)
 
 
-# write a shapeefile of the training data to the input folder for backup or other use
+
+# write a shapefile of the training data to the input folder for backup or other use
 ifelse(!dir.exists(here::here("_data","species",sp_code,"input")), dir.create(here::here("_data","species",sp_code,"input")), FALSE)
 ifelse(!dir.exists(here::here("_data","species",sp_code,"output")), dir.create(here::here("_data","species",sp_code,"output")), FALSE)
 st_write(spData_pro, here::here("_data", "species", sp_code, "input", paste0(sp_code,"_input.shp")), append=FALSE)
