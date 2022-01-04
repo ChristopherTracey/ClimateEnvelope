@@ -56,7 +56,6 @@ if (runtype=="start fresh") {
 }
 
 ###### binarize individual rasters, based on the minimum training presence threshold
-
 # load the current and future rasters
 BRT_current <- raster(model_metadata[which(model_metadata$model_type=="BRT"),"predict_current_fn"])
 Maxent_current <- raster(model_metadata[which(model_metadata$model_type=="Maxent"),"predict_current_fn"])
@@ -198,8 +197,9 @@ current_m <- calc(current, fun=mean) # unweighted mean of three models
 future45_m <- calc(future45, fun=mean) # unweighted mean of three models
 future85_m <- calc(future85, fun=mean) # unweighted mean of three models
 
-current_bin3_s <- calc(current_m, fun=bin_fut2) # for the current model, same deal
-future45_bin3_s <- calc(future45_m, fun=bin_fut2) # this is the thresholded version of the three models averaged, and then the threshold is set by the average. I think this is a thing you can do?
+# this is the thresholded version of the three models averaged, and then the threshold is set by the average. I think this is a thing you can do?
+current_bin3_s <- calc(current_m, fun=bin_fut2) 
+future45_bin3_s <- calc(future45_m, fun=bin_fut2) 
 future85_bin3_s <- calc(future85_m, fun=bin_fut2)
 
 plot(current_bin3_s)
@@ -208,30 +208,37 @@ plot(future85_bin3_s)
 
 ##### Save ensemble binned models in species output folder#####
 writeRaster(current_bin3_s, here::here("_data", "species", sp_code, "output", paste(model_run_name, "_ensemble_thresh", "_", "current",".tif", sep="")), overwrite=TRUE)
-writeRaster(future45_bin3_s, here::here("_data", "species", sp_code, "output", paste(model_run_name, "_", "_ensemble_thresh", "_", "future45",".tif", sep="")), overwrite=TRUE)
-writeRaster(future85_bin3_s, here::here("_data", "species", sp_code, "output", paste(model_run_name, "_", "_ensemble_thresh", "_", "future85",".tif", sep="")), overwrite=TRUE)
+writeRaster(future45_bin3_s, here::here("_data", "species", sp_code, "output", paste(model_run_name, "_ensemble_thresh", "_", "future45",".tif", sep="")), overwrite=TRUE)
+writeRaster(future85_bin3_s, here::here("_data", "species", sp_code, "output", paste(model_run_name, "_ensemble_thresh", "_", "future85",".tif", sep="")), overwrite=TRUE)
 
 # build CEM expand - contract - stable map, using the 4.5 scenario
-future_bin3_s <- reclassify(future45_bin3_s, c(-Inf, .25, 0, .25, 2, 2)) #reclassify the future to a 0,2 raster
+future45_bin3_s <- reclassify(future45_bin3_s, c(-Inf, .25, 0, .25, 2, 2)) #reclassify the future to a 0,2 raster
 
 cem_cf <- stack(current_bin3_s, future45_bin3_s)
 cem_cv_s <- calc(cem_cf, fun=sum)
 
 cem_cv_sdf <- as.data.frame(cem_cv_s, xy = TRUE) %>% na.omit()
-names_threshdf <- c("x","y","Range.Shift")
-names(cem_cv_sdf) <- names_threshdf
-cem_cv_sdf$Range.Shift <- as.factor(cem_cv_sdf$Range.Shift)
-levels(cem_cv_sdf$Range.Shift) <- c("Null", "Contracting", "Expanding", "Stable")
+names(cem_cv_sdf) <- c("x", "y", "Range.Shift")
+lookUp <- data.frame(val=c(0,1,2,3), shift=c("Null","Contracting", "Expanding", "Stable"))
+cem_cv_sdf <- merge(cem_cv_sdf, lookUp, by.x="Range.Shift", by.y="val", all.x=TRUE)
+cem_cv_sdf$shift <- ordered(cem_cv_sdf$shift, levels=c("Contracting", "Stable", "Expanding", "Null"))
 
 #THRESHOLD CONTRACT EXPAND STABLE MAP, NO POINTS
-custom_fill_pal <- c("#F2F2F2","#ECB176","#E6E600","#00A600")
+custom_fill_pal <- c(Contracting="#ECB176", Stable="#00A600", Expanding="#E6E600", Null="#F2F2F2")
 threshold_plot <- ggplot() + 
-  geom_raster(data=cem_cv_sdf, aes(x=x, y=y, fill=Range.Shift)) + scale_fill_manual(values= custom_fill_pal) +  geom_sf(data=states, fill=NA, color="black") + theme_void()
-ggsave(filename="threshold_plot.png", plot=threshold_plot, path = map_path, device='png', dpi=300)
+  geom_raster(data=cem_cv_sdf, aes(x=x, y=y, fill=shift)) + 
+  scale_fill_manual(values=custom_fill_pal) + 
+  geom_sf(data=states, fill=NA, color="black") + 
+  theme_void()
+ggsave(filename="threshold_plot.png", plot=threshold_plot, path=map_path, device='png', dpi=300)
 
 #THRESHOLD CONTRACT EXPAND STABLE MAP, WITH SPECIES POINTS
 threshold_plot_SP <- ggplot() + 
-  geom_raster(data=cem_cv_sdf, aes(x=x, y=y, fill=Range.Shift)) + scale_fill_manual(values= custom_fill_pal) + geom_point(data=sp_pts, aes(x=X, y=Y),shape=3) + geom_sf(data=states, fill=NA, color="black") + theme_void()
+  geom_raster(data=cem_cv_sdf, aes(x=x, y=y, fill=shift)) + 
+  scale_fill_manual(values= custom_fill_pal) + 
+  geom_point(data=sp_pts, aes(x=X, y=Y), shape=3) + 
+  geom_sf(data=states, fill=NA, color="black") + 
+  theme_void()
 ggsave(filename="threshold_plot_pts.png", plot=threshold_plot_SP, path = map_path, device='png', dpi=300)
 
 
