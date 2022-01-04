@@ -1,16 +1,4 @@
 library(here)
-library(arcgisbinding)
-arc.check_product()
-library(ggplot2)
-library(RSQLite)
-library(sf)
-library(tidyverse)
-library(SDMtune)
-library(reshape2)
-library(raster)
-library(remotes)
-library(dplyr)
-library(lubridate)
 library(rasterVis)
 library(rgdal)
 library(grid)
@@ -20,15 +8,18 @@ library(ggthemes) # theme_map()
 
 options(useFancyQuotes=FALSE) # needed to make sure SQL queries work as well as they could
 
+source(here::here("0_runCEM.r"))
+
 ######################################
 #Build stacked ensemble model ########
 #################################################################
 
-#select whether you are running the ensembling within the same session as the individual modeling occurred, or whether are you doing the ensembles in a separate session and starting with a blank workspace
 
+
+
+#select whether you are running the ensembling within the same session as the individual modeling occurred, or whether are you doing the ensembles in a separate session and starting with a blank workspace
 # enter "start fresh" here if you need to select the species and the model run by hand
 runtype <- "start fresh" #"start fresh" #continue
-
 #if you are starting this section separately from running a set of models, then you can manually define your model_run_name here
 if (runtype=="start fresh") {
   #model_run_name <- "abiebals_20211222_135814" #input the model run name you need
