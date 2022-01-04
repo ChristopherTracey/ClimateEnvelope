@@ -78,8 +78,9 @@ RF_t <- model_metadata[which(model_metadata$model_type=="RF"),"Thresholdmean_min
 states <- arc.open("https://maps.waterlandlife.org/arcgis/rest/services/BaseLayers/Boundaries/FeatureServer/3")
 states <- arc.select(states)
 states <- arc.data2sf(states)
-states <- states[states$NAME %in% c("Pennsylvania","New York", "Delaware", "West Virginia", "Virginia", "Ohio", "Maryland", "New Jersey"),]
+states <- states[states$NAME %in% c("Pennsylvania", "New York", "Delaware", "West Virginia", "Virginia", "Ohio", "Maryland", "New Jersey"),]
 states <- st_transform(states, crs=st_crs(BRT_current))
+states <- states %>% group_by(NAME) %>% summarize() # dissolve singleparts to multipart (e.g. long island)
 
 #Species points
 Sp_path <- here::here("_data", "species", sp_code, "input", paste0(sp_code,"_input.shp"))
@@ -218,16 +219,39 @@ cem_cf <- stack(current_bin3_s, future45_bin3_s)
 cem_cv_s <- calc(cem_cf, fun=sum)
 cem_cv_sdf <- as.data.frame(cem_cv_s, xy = TRUE) %>% na.omit()
 names(cem_cv_sdf) <- c("x", "y", "Range.Shift")
-lookUp <- data.frame(val=c(0,1,2,3), shift=c("Null","Contracting", "Expanding", "Stable"))
-cem_cv_sdf <- merge(cem_cv_sdf, lookUp, by.x="Range.Shift", by.y="val", all.x=TRUE)
-cem_cv_sdf$shift <- ordered(cem_cv_sdf$shift, levels=c("Contracting", "Stable", "Expanding", "Null"))
+cem_cv_sdf$Range.Shift <- factor(cem_cv_sdf$Range.Shift, levels=c(0,1,2,3), labels=c("Null", "Contracting", "Expanding", "Stable" ))
+rm(cem_cf)
 
+# write the cem to a tif
 writeRaster(cem_cv_s, here::here("_data", "species", sp_code, "output", paste(model_run_name, "_cem",".tif", sep="")), overwrite=TRUE)
 
-#THRESHOLD CONTRACT EXPAND STABLE MAP, NO POINTS
+# summarize by area
+fr <- rasterize(states, cem_cv_s) # rasterize the states to mask outside project area
+lr <- mask(x=cem_cv_s, mask=fr) # mask by the project area
+rm(fr)
+
+tabFunc<-function(indx, extracted, region, regname) {
+  dat <- as.data.frame(table(extracted[[indx]]))
+  dat$name <- region[[regname]][[indx]]
+  return(dat)
+}
+
+ext <- extract(lr, states, method='simple')
+cem_areaTab <- lapply(seq(ext), tabFunc, ext, states, "NAME")
+cem_areaTab <- do.call("rbind", cem_areaTab) # convert to df
+cem_areaTab$Var1 <- factor(cem_areaTab$Var1, levels=c(0,1,2,3), labels=c("Null", "Contracting", "Expanding", "Stable" ))
+cem_areaTab_wide <- cem_areaTab %>%
+  group_by(name) %>% # group by region
+  mutate(totcells=sum(Freq), # how many cells overall
+         percent.area=round(100*Freq/totcells,2)) %>% #cells by shift/total cells
+  dplyr::select(-c(Freq, totcells)) %>% # there is a select func in raster so need to specify
+  spread(key=Var1, value=percent.area, fill=0)
+
+# make the plots for the metadata
 custom_fill_pal <- c(Contracting="#ECB176", Stable="#00A600", Expanding="#E6E600", Null="#F2F2F2")
+#THRESHOLD CONTRACT EXPAND STABLE MAP, NO POINTS
 threshold_plot <- ggplot() + 
-  geom_raster(data=cem_cv_sdf, aes(x=x, y=y, fill=shift)) + 
+  geom_raster(data=cem_cv_sdf, aes(x=x, y=y, fill=Range.Shift)) + 
   scale_fill_manual(values=custom_fill_pal) + 
   geom_sf(data=states, fill=NA, color="black") + 
   theme_void()
@@ -235,7 +259,7 @@ ggsave(filename="threshold_plot.png", plot=threshold_plot, path=map_path, device
 
 #THRESHOLD CONTRACT EXPAND STABLE MAP, WITH SPECIES POINTS
 threshold_plot_SP <- ggplot() + 
-  geom_raster(data=cem_cv_sdf, aes(x=x, y=y, fill=shift)) + 
+  geom_raster(data=cem_cv_sdf, aes(x=x, y=y, fill=Range.Shift)) + 
   scale_fill_manual(values= custom_fill_pal) + 
   geom_point(data=sp_pts, aes(x=X, y=Y), shape=3) + 
   geom_sf(data=states, fill=NA, color="black") + 
