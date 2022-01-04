@@ -216,12 +216,13 @@ future45_bin3_s <- reclassify(future45_bin3_s, c(-Inf, .25, 0, .25, 2, 2)) #recl
 
 cem_cf <- stack(current_bin3_s, future45_bin3_s)
 cem_cv_s <- calc(cem_cf, fun=sum)
-
 cem_cv_sdf <- as.data.frame(cem_cv_s, xy = TRUE) %>% na.omit()
 names(cem_cv_sdf) <- c("x", "y", "Range.Shift")
 lookUp <- data.frame(val=c(0,1,2,3), shift=c("Null","Contracting", "Expanding", "Stable"))
 cem_cv_sdf <- merge(cem_cv_sdf, lookUp, by.x="Range.Shift", by.y="val", all.x=TRUE)
 cem_cv_sdf$shift <- ordered(cem_cv_sdf$shift, levels=c("Contracting", "Stable", "Expanding", "Null"))
+
+writeRaster(cem_cv_s, here::here("_data", "species", sp_code, "output", paste(model_run_name, "_cem",".tif", sep="")), overwrite=TRUE)
 
 #THRESHOLD CONTRACT EXPAND STABLE MAP, NO POINTS
 custom_fill_pal <- c(Contracting="#ECB176", Stable="#00A600", Expanding="#E6E600", Null="#F2F2F2")
