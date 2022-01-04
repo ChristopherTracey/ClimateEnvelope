@@ -62,9 +62,9 @@ BRT_current <- raster(model_metadata[which(model_metadata$model_type=="BRT"),"pr
 Maxent_current <- raster(model_metadata[which(model_metadata$model_type=="Maxent"),"predict_current_fn"])
 RF_current <- raster(model_metadata[which(model_metadata$model_type=="RF"),"predict_current_fn"])
 
-BRT_future <- raster(model_metadata[which(model_metadata$model_type=="BRT"),"predict_future_fn"])
-Maxent_future <- raster(model_metadata[which(model_metadata$model_type=="Maxent"),"predict_future_fn"])
-RF_future <- raster(model_metadata[which(model_metadata$model_type=="RF"),"predict_future_fn"])
+BRT_future45 <- raster(model_metadata[which(model_metadata$model_type=="BRT"),"predict_future_fn"])
+Maxent_future45 <- raster(model_metadata[which(model_metadata$model_type=="Maxent"),"predict_future_fn"])
+RF_future45 <- raster(model_metadata[which(model_metadata$model_type=="RF"),"predict_future_fn"])
 
 BRT_future85 <- raster(model_metadata[which(model_metadata$model_type=="BRT"),"predict_future_fn85"])
 Maxent_future85 <- raster(model_metadata[which(model_metadata$model_type=="Maxent"),"predict_future_fn85"])
@@ -87,7 +87,7 @@ Sp_path <- here::here("_data", "species", sp_code, "input", paste0(sp_code,"_inp
 spData <- arc.open(Sp_path)
 spData <- arc.select(spData)
 spData <- arc.data2sf(spData)
-spData_pro <- st_transform(spData, crs=crs(crs_map))
+spData_pro <- st_transform(spData, crs=crs(BRT_current))
 
 # function to binerize the MaxEnt model
 bin_M <- function(x) {
@@ -132,11 +132,11 @@ current_wm <- ggplot() + geom_raster(data=current_wmdf, aes(x=x, y=y, fill=Likel
 ggsave(filename="current_wm.png", plot=current_wm, path = map_path, device='png', dpi=300)
 
 # binarize the future rasters (4.5, the baseline reporting scenario we're using)
-Maxent_future_bin <- calc(Maxent_future, fun=bin_M)
-BRT_future_bin <- calc(BRT_future, fun=bin_BRT)
-RF_future_bin <- calc(RF_future, fun=bin_RF)
-future_bin <- stack(Maxent_future_bin, BRT_future_bin, RF_future_bin)
-future_bin_s <- calc(future_bin, sum)
+Maxent_future45_bin <- calc(Maxent_future45, fun=bin_M)
+BRT_future45_bin <- calc(BRT_future45, fun=bin_BRT)
+RF_future45_bin <- calc(RF_future45, fun=bin_RF)
+future45_bin <- stack(Maxent_future45_bin, BRT_future45_bin, RF_future45_bin)
+future45_bin_s <- calc(future_bin, sum)
 
 #binarize the future 8.5 rasters
 Maxent_future_bin85 <- calc(Maxent_future85, fun=bin_M)
@@ -146,7 +146,7 @@ future_bin85 <- stack(Maxent_future_bin85, BRT_future_bin85, RF_future_bin85)
 future_bin_s85 <- calc(future_bin85, sum)
 
 # stack and average the future maps, weighting by TSS
-future45 <- stack(BRT_future, Maxent_future, RF_future)
+future45 <- stack(BRT_future45, Maxent_future45, RF_future45)
 future45_wm <- weighted.mean(future45, w=model_metadata$TSSpost) #weighted mean of the three current models, w/ TSS used to weight. This is a continuous model
 future45_wmdf <- as.data.frame(future45_wm, xy = TRUE) %>% na.omit()
 names(future45_wmdf) <- names_rdf
@@ -161,14 +161,14 @@ plot(future85_wm)
 
 #create map and export WITH spp points overlaid
 future45_wm_pts <- ggplot() + 
-  geom_raster(data=future_wmdf, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
+  geom_raster(data=future45_wmdf, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
   geom_point(data=sp_pts, aes(x=X, y=Y),shape=3) + geom_sf(data=states, fill=NA, color="black") +
   scale_fill_viridis_c(limits = c(0, 1)) + theme_void() + theme(legend.position = "bottom")
 ggsave(filename="future_45_wm_pts.png", plot=future45_wm_pts, path = map_path, device='png', dpi=300)
 
 #create map and export WITHOUT spp points overlaid
 future45_wm <- ggplot() + 
-  geom_raster(data=future_wmdf, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
+  geom_raster(data=future45_wmdf, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
   geom_sf(data=states, fill=NA, color="black") +
   scale_fill_viridis_c(limits = c(0, 1)) + theme_void() + theme(legend.position = "bottom")
 ggsave(filename="future_45_wm.png", plot=future45_wm, path = map_path, device='png', dpi=300)
