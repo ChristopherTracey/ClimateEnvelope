@@ -207,9 +207,9 @@ plot(future45_bin3_s)
 plot(future85_bin3_s)
 
 ##### Save ensemble binned models in species output folder#####
-writeRaster(current_bin3_s, here::here("_data", "species", sp_code, "output", paste("current_bin3_s",".tif", sep="")), overwrite=TRUE)
-writeRaster(future45_bin3_s, here::here("_data", "species", sp_code, "output", paste("future45_bin3_s",".tif", sep="")), overwrite=TRUE)
-writeRaster(future85_bin3_s, here::here("_data", "species", sp_code, "output", paste("future85_bin3_s",".tif", sep="")), overwrite=TRUE)
+writeRaster(current_bin3_s, here::here("_data", "species", sp_code, "output", paste(model_run_name, "_ensemble_thresh", "_", "current",".tif", sep="")), overwrite=TRUE)
+writeRaster(future45_bin3_s, here::here("_data", "species", sp_code, "output", paste(model_run_name, "_", "_ensemble_thresh", "_", "future45",".tif", sep="")), overwrite=TRUE)
+writeRaster(future85_bin3_s, here::here("_data", "species", sp_code, "output", paste(model_run_name, "_", "_ensemble_thresh", "_", "future85",".tif", sep="")), overwrite=TRUE)
 
 # build CEM expand - contract - stable map, using the 4.5 scenario
 future_bin3_s <- reclassify(future45_bin3_s, c(-Inf, .25, 0, .25, 2, 2)) #reclassify the future to a 0,2 raster
