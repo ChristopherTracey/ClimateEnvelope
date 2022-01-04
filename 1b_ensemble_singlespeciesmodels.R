@@ -29,9 +29,6 @@ options(useFancyQuotes=FALSE) # needed to make sure SQL queries work as well as 
 # enter "start fresh" here if you need to select the species and the model run by hand
 runtype <- "start fresh" #"start fresh" #continue
 
-#file path to save .tiff and geotiff outputs from ensemble modeling
-map_path <- here::here("_data", "species", sp_code, "output")
-
 #if you are starting this section separately from running a set of models, then you can manually define your model_run_name here
 if (runtype=="start fresh") {
   #model_run_name <- "abiebals_20211222_135814" #input the model run name you need
@@ -56,15 +53,15 @@ if (runtype=="start fresh") {
 }
 
 ###### binarize individual rasters, based on the minimum training presence threshold
-# load the current and future rasters
+# load the current rasters
 BRT_current <- raster(model_metadata[which(model_metadata$model_type=="BRT"),"predict_current_fn"])
 Maxent_current <- raster(model_metadata[which(model_metadata$model_type=="Maxent"),"predict_current_fn"])
 RF_current <- raster(model_metadata[which(model_metadata$model_type=="RF"),"predict_current_fn"])
-
+# load the future 4.5 rasters
 BRT_future45 <- raster(model_metadata[which(model_metadata$model_type=="BRT"),"predict_future_fn"])
 Maxent_future45 <- raster(model_metadata[which(model_metadata$model_type=="Maxent"),"predict_future_fn"])
 RF_future45 <- raster(model_metadata[which(model_metadata$model_type=="RF"),"predict_future_fn"])
-
+# load the future 8.5 rasters
 BRT_future85 <- raster(model_metadata[which(model_metadata$model_type=="BRT"),"predict_future_fn85"])
 Maxent_future85 <- raster(model_metadata[which(model_metadata$model_type=="Maxent"),"predict_future_fn85"])
 RF_future85 <- raster(model_metadata[which(model_metadata$model_type=="RF"),"predict_future_fn85"])
@@ -123,13 +120,13 @@ sp_pts <- as.data.frame(st_coordinates(spData_pro))
 current_wm_pts <- ggplot() + geom_raster(data=current_wmdf, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
   geom_point(data=sp_pts, aes(x=X, y=Y),shape=3) + geom_sf(data=states, fill=NA, color="black") +
 scale_fill_viridis_c(limits = c(0, 1)) + theme_void() + theme(legend.position = "bottom")
-ggsave(filename="current_wm_pts.png", plot=current_wm_pts, path = map_path, device='png', dpi=300)
+ggsave(filename=here::here("_data", "species", sp_code, "output", paste(model_run_name, "_current_wm_pts",".png", sep="")), plot=current_wm_pts, device='png', dpi=300)
 
 #create map and export WITHOUT spp points overlaid
 current_wm <- ggplot() + geom_raster(data=current_wmdf, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
   geom_sf(data=states, fill=NA, color="black") +
   scale_fill_viridis_c(limits = c(0, 1)) + theme_void() + theme(legend.position = "bottom")
-ggsave(filename="current_wm.png", plot=current_wm, path = map_path, device='png', dpi=300)
+ggsave(filename=here::here("_data", "species", sp_code, "output", paste(model_run_name, "_current_wm",".png", sep="")), plot=current_wm, device='png', dpi=300)
 
 # binarize the future rasters (4.5, the baseline reporting scenario we're using)
 Maxent_future45_bin <- calc(Maxent_future45, fun=bin_M)
@@ -164,28 +161,28 @@ future45_wm_pts <- ggplot() +
   geom_raster(data=future45_wmdf, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
   geom_point(data=sp_pts, aes(x=X, y=Y),shape=3) + geom_sf(data=states, fill=NA, color="black") +
   scale_fill_viridis_c(limits = c(0, 1)) + theme_void() + theme(legend.position = "bottom")
-ggsave(filename="future_45_wm_pts.png", plot=future45_wm_pts, path = map_path, device='png', dpi=300)
+ggsave(filename=here::here("_data", "species", sp_code, "output", paste(model_run_name, "_future_45_wm_pts",".png", sep="")), plot=future45_wm_pts, device='png', dpi=300)
 
 #create map and export WITHOUT spp points overlaid
 future45_wm <- ggplot() + 
   geom_raster(data=future45_wmdf, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
   geom_sf(data=states, fill=NA, color="black") +
   scale_fill_viridis_c(limits = c(0, 1)) + theme_void() + theme(legend.position = "bottom")
-ggsave(filename="future_45_wm.png", plot=future45_wm, path = map_path, device='png', dpi=300)
+ggsave(filename=here::here("_data", "species", sp_code, "output", paste(model_run_name, "_future_45_wm",".png", sep="")), plot=future45_wm, device='png', dpi=300)
 
 #and do the same for the 8.5 future scenario
 future85_wm_pts <- ggplot() + 
   geom_raster(data=future85_wmdf, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
   geom_point(data=sp_pts, aes(x=X, y=Y),shape=3) + geom_sf(data=states, fill=NA, color="black") +
   scale_fill_viridis_c(limits = c(0, 1)) + theme_void() + theme(legend.position = "bottom")
-ggsave(filename="future_85_wm_pts.png", plot=future85_wm_pts, path = map_path, device='png', dpi=300)
+ggsave(filename=here::here("_data", "species", sp_code, "output", paste(model_run_name, "_future_85_wm_pts",".png", sep="")), plot=future85_wm_pts, device='png', dpi=300)
 
 #create map and export WITHOUT spp points overlaid
 future85_wm <- ggplot() + 
   geom_raster(data=future85_wmdf, aes(x=x, y=y, fill=Likelihood), alpha=0.7) +
   geom_sf(data=states, fill=NA, color="black") +
   scale_fill_viridis_c(limits = c(0, 1)) + theme_void() + theme(legend.position = "bottom")
-ggsave(filename="future_85_wm.png", plot=future85_wm, path = map_path, device='png', dpi=300)
+ggsave(filename=here::here("_data", "species", sp_code, "output", paste(model_run_name, "_future_85_wm",".png", sep="")), plot=future85_wm, device='png', dpi=300)
 
 #Averaged binned ensemble model (use mean of threshold values to threshold the mean ensemble future model)
 mean_threshold <- mean(c(Maxent_t, BRT_t, RF_t))
@@ -255,7 +252,7 @@ threshold_plot <- ggplot() +
   scale_fill_manual(values=custom_fill_pal) + 
   geom_sf(data=states, fill=NA, color="black") + 
   theme_void()
-ggsave(filename="threshold_plot.png", plot=threshold_plot, path=map_path, device='png', dpi=300)
+ggsave(filename=here::here("_data", "species", sp_code, "output", paste(model_run_name, "_thresholdPlot",".png", sep="")), plot=threshold_plot, device='png', dpi=300)
 
 #THRESHOLD CONTRACT EXPAND STABLE MAP, WITH SPECIES POINTS
 threshold_plot_SP <- ggplot() + 
@@ -264,7 +261,7 @@ threshold_plot_SP <- ggplot() +
   geom_point(data=sp_pts, aes(x=X, y=Y), shape=3) + 
   geom_sf(data=states, fill=NA, color="black") + 
   theme_void()
-ggsave(filename="threshold_plot_pts.png", plot=threshold_plot_SP, path = map_path, device='png', dpi=300)
+ggsave(filename=here::here("_data", "species", sp_code, "output", paste(model_run_name, "_thresholdPlot_pts",".png", sep="")), plot=threshold_plot_SP, device='png', dpi=300)
 
 
 
