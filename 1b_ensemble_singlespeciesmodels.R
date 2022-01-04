@@ -14,34 +14,28 @@ source(here::here("0_runCEM.r"))
 #Build stacked ensemble model ########
 #################################################################
 
+sp_code <- sp_code
+db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
+model_runs <- dbGetQuery(db_cem, paste("SELECT model_run_name FROM MODEL_RUNS WHERE sp_code = " , sQuote(sp_code), sep="") )
+dbDisconnect(db_cem)
+model_runs <- unique(model_runs[,1]) #switching from a dataframe to a vector
 
-
-
-#select whether you are running the ensembling within the same session as the individual modeling occurred, or whether are you doing the ensembles in a separate session and starting with a blank workspace
-# enter "start fresh" here if you need to select the species and the model run by hand
-runtype <- "start fresh" #"start fresh" #continue
-#if you are starting this section separately from running a set of models, then you can manually define your model_run_name here
-if (runtype=="start fresh") {
-  #model_run_name <- "abiebals_20211222_135814" #input the model run name you need
-  #sp_code <- "abiebals" # which species are you working with? Abies balsamifera  
-  sp_code <- sp_code
-  db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
-  model_runs <- dbGetQuery(db_cem, paste("SELECT model_run_name FROM MODEL_RUNS WHERE sp_code = " , sQuote(sp_code), sep="") )
-  model_runs <- model_runs[,1] #switching from a dataframe to a vector
-  model_runs
-  db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
-  SQLquery <- paste("SELECT model_run_name, model_type, predict_current_fn, predict_future_fn, predict_future_fn, predict_future_fn85, Thresholdmean_minTrainPres, Thresholdsd_minTrainPres, TSSpost FROM MODEL_RUNS WHERE model_run_name = ", sQuote(unique(model_runs))) 
-  model_metadata <- dbGetQuery(db_cem, SQLquery)
-  dbDisconnect(db_cem)
-  model_metadata <- unique(model_metadata)
-}  else {  
-  # get model output names from metadata
-  db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
-  SQLquery <- paste("SELECT model_run_name, model_type, predict_current_fn, predict_future_fn, predict_future_fn85, Thresholdmean_minTrainPres, Thresholdsd_minTrainPres, TSSpost FROM MODEL_RUNS WHERE model_run_name = ", sQuote(model_run_name)) 
-  model_metadata <- dbGetQuery(db_cem, SQLquery)
-  dbDisconnect(db_cem)
-  model_metadata <- unique(model_metadata) # git it down to one row as I have it write out two rows for some reason..
+if(length(model_runs)==1){
+  model_run <- model_runs
+} else if(length(model_runs)>1){
+  cat("Multiple models found, please select the number of the model you want to use:\n")
+  cat(model_runs)
+  n <- 2
+  model_run <- model_runs[n]
+} else {
+  cat("No model found. Was it run yet?")
 }
+
+db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
+SQLquery <- paste("SELECT model_run_name, model_type, predict_current_fn, predict_future_fn, predict_future_fn, predict_future_fn85, Thresholdmean_minTrainPres, Thresholdsd_minTrainPres, TSSpost FROM MODEL_RUNS WHERE model_run_name = ", sQuote(model_run)) 
+model_metadata <- dbGetQuery(db_cem, SQLquery)
+dbDisconnect(db_cem)
+model_metadata <- unique(model_metadata)
 
 ###### binarize individual rasters, based on the minimum training presence threshold
 # load the current rasters
