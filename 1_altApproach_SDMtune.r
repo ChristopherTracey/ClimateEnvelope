@@ -16,24 +16,35 @@ cat("Loading the predictor data...")
 studyArea <- arc.open(studyArea)
 studyArea <- arc.select(studyArea)
 studyArea <- arc.data2sf(studyArea)
-studyArea <- st_transform(studyArea, crs=crs(predictors_Current))
 
-# stack the predictors
+# load and stack the Current predictors
 predictors_Current <- stack(list.files(pathPredictorsCurrent, pattern = 'tif$', full.names=TRUE ))
-#predictors_Current <- projectRaster(predictors_Current, crs=4326) #for now this seems to just be messing this layer up....?
 
+# check to see if the crs of the current predictors and the study area are the same
+a <- str_split(crs(studyArea), ' ')
+b <- str_split(crs(predictors_Current), ' ')
+if(isFALSE(identical(sort(unlist(a)), sort(unlist(b))))){
+  cat("CRS's of the study area and predictors are mismatched. Reprojecting...")
+  studyArea <- st_transform(studyArea, crs=crs(predictors_Current)) # reproject the study area
+  a <- str_split(crs(studyArea), ' ')
+  identical(sort(unlist(a)), sort(unlist(b)))
+} else {
+  cat("CRS's of the study area and predictors are the same. No worries...")
+}
+rm(a,b)
+
+# load and stack the Future predictors
 predictors_Future4.5 <- stack(list.files(pathPredictorsFuture4.5, pattern = 'tif$', full.names=TRUE ))
 crs(predictors_Future4.5) <- crs(predictors_Current)
-
 predictors_Future8.5 <- stack(list.files(pathPredictorsFuture8.5, pattern = 'tif$', full.names=TRUE ))
 crs(predictors_Future8.5) <- crs(predictors_Current)
 
 # check to see if the names are the same
-setdiff(names(predictors_Current), names(predictors_Future4.5))
-setdiff(names(predictors_Future4.5), names(predictors_Current))
-
-setdiff(names(predictors_Current), names(predictors_Future8.5))
-setdiff(names(predictors_Future8.5), names(predictors_Current))
+if(isTRUE(identical(sort(names(predictors_Current)), sort(names(predictors_Future4.5))))&isTRUE(identical(sort(names(predictors_Current)), sort(names(predictors_Future8.5))))){
+  cat("All raster layers are correctly named...")
+} else {
+  cat("You have a name mismatch somewhere in the future raster layers")
+}
 
 # get set of random points for correlation analysis
 set.seed(25)
@@ -48,10 +59,21 @@ spData <- arc.select(spData)
 spData <- arc.data2sf(spData)
 SpData <- spData[spData$SNAME==sp_data$SNAME,]
 SpData <- SpData[SpData$USEDATA %in% c("Y","y"),]#keep only the species marked as a "Y" for modeling
-spData_pro <- st_transform(SpData, crs=crs(predictors_Current))
 
+# check to see if projections are the same and modify if not
+a <- str_split(crs(SpData), ' ')
+b <- str_split(crs(predictors_Current), ' ')
+if(isFALSE(identical(sort(unlist(a)), sort(unlist(b))))){
+  cat("CRS's of the species data and predictors are mismatched. Reprojecting the species data...")
+  spData_pro <- st_transform(SpData, crs=crs(predictors_Current)) # reproject the study area
+  a <- str_split(crs(spData_pro), ' ')
+  identical(sort(unlist(a)), sort(unlist(b)))
+} else {
+  cat("CRS's of the species data and predictors are the same. No worries...")
+}
+rm(a,b,spData,SpData)
 
-# write a shapeefile of the training data to the input folder for backup or other use
+# write a shapefile of the training data to the input folder for backup or other use
 ifelse(!dir.exists(here::here("_data","species",sp_code,"input")), dir.create(here::here("_data","species",sp_code,"input")), FALSE)
 ifelse(!dir.exists(here::here("_data","species",sp_code,"output")), dir.create(here::here("_data","species",sp_code,"output")), FALSE)
 st_write(spData_pro, here::here("_data", "species", sp_code, "input", paste0(sp_code,"_input.shp")), append=FALSE)
@@ -71,12 +93,6 @@ md_bg <- nrow(coords_bg) # get some metadata
 coords_bg_thin <- thinData(coords_bg, predictors_Current)
 md_bgThinned <- nrow(coords_bg_thin) # get some metadata
 
-# # check to see if the coordinate systems are the same
-# a <- stringr::str_split(as.character(crs(predictors_Current)), ' ')
-# b <- stringr::str_split(as.character(crs(spData)), ' ')
-# identical(sort(unlist(a)), sort(unlist(b)))
-# rm(a,b)
-
 # create SDW object ############################
 data.SWD <- prepareSWD(species=unique(spData_pro$SNAME), p=coords_pres_thin, a=coords_bg_thin, env=predictors_Current)
 data.SWD
@@ -86,7 +102,6 @@ data.SWD
 #write.csv(rasValue, file="rasvalue.csv")
 
 plotCor(data.SWD , method="spearman", cor_th=0.7)
-
 
 bg_var_sel <- prepareSWD(species=unique(spData_pro$SNAME), a=coords_bg_thin, env=predictors_Current)
 plotCor(bg_var_sel, method="spearman", cor_th=0.7)
@@ -156,7 +171,7 @@ for(i in 1:length(ModelMethods)){
   }
 
   # insert some model run metadata
-  cat("Inserting metadata into the database")
+  cat("Inserting metadata into the database\n")
   sf_metadata <- data.frame("sp_code"=sp_code, "model_run_name"=model_run_name, "model_type"=ModelMethods[i], "modeller"=modeller, "TrainingPoints"=md_ptTraining, "TrainingPoints_thinned"=md_ptTrainingThinned, "BackgroundPoints"=md_bg, "BackgroundPoints_thinned"=md_bgThinned, "AUCpre"=md_aucPre, "AUCpost"=md_aucPost, "TSSpre"=md_tssPre, "TSSpost"=md_tssPost, "Thresholdmean_minTrainPres"=Thresholdmean_minTrainPres, "Thresholdsd_minTrainPres"=Thresholdsd_minTrainPres)
   db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
   SQLquery <- paste("INSERT INTO model_runs (", paste(names(sf_metadata), collapse = ',') ,") VALUES (",paste(sQuote(sf_metadata[1,]), collapse = ','),");", sep="") 
@@ -199,8 +214,8 @@ for(i in 1:length(ModelMethods)){
   
   
   # predict the model to the future env predictors
-  cat("- predicting the model to the future env predictors\n")
-  timeframe <- "future"
+  cat("- predicting the model to the future 4.5 env predictors\n")
+  timeframe <- "future4.5"
   if(ModelMethods[i]=="Maxent"){
     map <- predict(vs, data=predictors_Future4.5, type="cloglog")
   } else if(ModelMethods[i]=="RF"|ModelMethods[i]=="BRT") {
