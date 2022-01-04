@@ -37,6 +37,8 @@ model_metadata <- dbGetQuery(db_cem, SQLquery)
 dbDisconnect(db_cem)
 model_metadata <- unique(model_metadata)
 
+model_run_name <- model_run
+
 ###### binarize individual rasters, based on the minimum training presence threshold
 # load the current rasters
 BRT_current <- raster(model_metadata[which(model_metadata$model_type=="BRT"),"predict_current_fn"])
@@ -118,7 +120,7 @@ Maxent_future45_bin <- calc(Maxent_future45, fun=bin_M)
 BRT_future45_bin <- calc(BRT_future45, fun=bin_BRT)
 RF_future45_bin <- calc(RF_future45, fun=bin_RF)
 future45_bin <- stack(Maxent_future45_bin, BRT_future45_bin, RF_future45_bin)
-future45_bin_s <- calc(future_bin, sum)
+future45_bin_s <- calc(future45_bin, sum)
 
 #binarize the future 8.5 rasters
 Maxent_future_bin85 <- calc(Maxent_future85, fun=bin_M)

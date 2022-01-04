@@ -27,7 +27,7 @@ source(here::here("helperFunctions.r"))
 
 ## STEP 1: Variables and Such ################################
 # species code (from lkpSpecies in modelling database. This will be the new folder name containing inputs/outputs)
-sp_code <- "menytrif" # Abies balsamifera
+sp_code <- "mitenuda" # Abies balsamifera
 # model methods
 ModelMethods <- c("Maxent","BRT","RF")
 # Modeling database
