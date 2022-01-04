@@ -27,7 +27,7 @@ options(useFancyQuotes=FALSE) # needed to make sure SQL queries work as well as 
 #select whether you are running the ensembling within the same session as the individual modeling occurred, or whether are you doing the ensembles in a separate session and starting with a blank workspace
 
 # enter "start fresh" here if you need to select the species and the model run by hand
-runtype <- "start fresh" #"start fresh" #continue
+runtype <- "continue" #"start fresh" #continue
 
 #file path to save .tiff and geotiff outputs from ensemble modeling
 map_path <- here::here("_data", "species", sp_code, "output")
