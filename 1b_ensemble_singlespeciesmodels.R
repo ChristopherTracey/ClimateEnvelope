@@ -23,10 +23,13 @@ model_runs <- unique(model_runs[,1]) #switching from a dataframe to a vector
 if(length(model_runs)==1){
   model_run <- model_runs
 } else if(length(model_runs)>1){
-  cat("Multiple models found, please select the number of the model you want to use:\n")
-  cat(model_runs)
-  n <- 2
-  model_run <- model_runs[n]
+  # cat("Multiple models found, please select the number of the model you want to use:\n")
+  # cat(model_runs)
+  # n <- 2
+  # model_run <- model_runs[n]
+  model_runs <- sort(model_runs)
+  cat("Multiple models found, using the most recent model: ",  model_runs[length(model_runs)])
+  model_run <- model_runs[length(model_runs)]
 } else {
   cat("No model found. Was it run yet?")
 }
