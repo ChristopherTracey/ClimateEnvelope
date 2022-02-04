@@ -20,7 +20,6 @@ WV_plots <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/SppSpatialData/WV_Spe
 PA_plots <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/SppSpatialData/PA_Species_in_plots.shp"
 VA_plots17UTM <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/SppSpatialData/KP_PANHP_Modelspeciesplots_UTM17N_XYTableToPoint.shp"
 VA_plots18UTM <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/SppSpatialData/KP_PANHP_Modelspeciesplots_UTM18N_XYTableToPoint.shp"
-GBIF_data2 <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/SppSpatialData/GBIF_data2_clip.shp"
 
 #reformat each sf so they can be joined into a single dataset for modeling
 
@@ -192,22 +191,6 @@ names(VA_plots2) <- SpNames
 VA_plots2$YEAR <- year(VA_plots2$YEAR)
 
 VA_plots2 <- st_transform(VA_plots2, crs=CRS_Code)
-
-###### GBIF 2 ##############
-GBIF_data2 <- arc.open(GBIF_data2)
-GBIF_data2 <- arc.select(GBIF_data2)
-GBIF_data2 <- arc.data2sf(GBIF_data2)
-
-#had to do a recode here for SNAME
-GBIF_data2$SNAME <- as.factor(GBIF_data2$SNAME)
-levels(GBIF_data2$SNAME) <- c("Carex paupercula","Potentilla fruticosa", "Lupinus perennis","Prenanthes serpentaria","Viburnum trilobum","Viburnum trilobum","Viburnum trilobum")
-
-
-GBIF_data2 <- right_join(GBIF_data2, ELCODEs)
-GBIF_data <- GBIF_data2 %>% dplyr::select(ELCODE, SNAME,LastObs, Notes, DataSource, usedata)
-names(GBIF_data2) <- SpNames
-
-GBIF_data2 <- st_transform(GBIF_data2, crs=CRS_Code)
 
 #############################
 #### Bind em all together ###
