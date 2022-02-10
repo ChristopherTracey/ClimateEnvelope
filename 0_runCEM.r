@@ -27,13 +27,13 @@ source(here::here("helperFunctions.r"))
 
 ## STEP 1: Variables and Such ################################
 # species code (from lkpSpecies in modelling database. This will be the new folder name containing inputs/outputs)
-sp_code <- "mitenuda" # Abies balsamifera
+sp_code <- "utriinte" # Abies balsamifera
 # model methods
 ModelMethods <- c("Maxent","BRT","RF")
 # Modeling database
 nm_db_file <- here("_data", "databases", "CEMdata.sqlite")
 # species data 
-spData_path <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/SppSpatialData/All_SpPoints/Sp_Points.shp"
+spData_path <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/SppSpatialData/All_SpPoints/Sp_Points2.shp"
 # project area, shapefile or gdb feature class
 studyArea <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/EnvironmentalData_FullExtent/Refugia Modeling Boundary/Refugia Modeling Boundary.shp"
 
@@ -42,7 +42,7 @@ pathPredictorsCurrent <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/Environm
 pathPredictorsFuture4.5 <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/EnvironmentalData_FullExtent/NA_ENSEMBLE_rcp45_2050s_Bioclim_ASCII/NewVars_masked"
 pathPredictorsFuture8.5 <- "W:/Heritage/Heritage_Projects/1280_CC_Refugia/EnvironmentalData_FullExtent/NA_ENSEMBLE_rcp85_2050s_Bioclim_ASCII/NewVars_masked"
 # your name
-modeller = "Christopher Tracey"
+modeller = "Anna Johnson"
 
 #model output path
 #Model_outputpath <- here::here(paste("_data/","species","/",sp_code,"/output", sep=""))

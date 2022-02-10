@@ -23,16 +23,15 @@ model_runs <- unique(model_runs[,1]) #switching from a dataframe to a vector
 if(length(model_runs)==1){
   model_run <- model_runs
 } else if(length(model_runs)>1){
-  # cat("Multiple models found, please select the number of the model you want to use:\n")
-  # cat(model_runs)
-  # n <- 2
-  # model_run <- model_runs[n]
-  model_runs <- sort(model_runs)
-  cat("Multiple models found, using the most recent model: ",  model_runs[length(model_runs)])
-  model_run <- model_runs[length(model_runs)]
+  cat("Multiple models found, please select the number of the model you want to use:\n")
+  cat(model_runs)
+  n <- 6
+  model_run <- model_runs[n]
 } else {
   cat("No model found. Was it run yet?")
 }
+
+model_run
 
 db_cem <- dbConnect(SQLite(), dbname=nm_db_file) # connect to the database
 SQLquery <- paste("SELECT model_run_name, model_type, predict_current_fn, predict_future_fn, predict_future_fn, predict_future_fn85, Thresholdmean_minTrainPres, Thresholdsd_minTrainPres, TSSpost FROM MODEL_RUNS WHERE model_run_name = ", sQuote(model_run)) 
@@ -63,6 +62,7 @@ RF_t <- model_metadata[which(model_metadata$model_type=="RF"),"Thresholdmean_min
 
 #state outlines
 states <- arc.open("https://maps.waterlandlife.org/arcgis/rest/services/BaseLayers/Boundaries/FeatureServer/3")
+
 states <- arc.select(states)
 states <- arc.data2sf(states)
 states <- states[states$NAME %in% c("Pennsylvania", "New York", "Delaware", "West Virginia", "Virginia", "Ohio", "Maryland", "New Jersey"),]
